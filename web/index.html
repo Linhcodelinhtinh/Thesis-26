@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VLA Embodied Memory & MuJoCo 3D Digital Twin</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Google Fonts & Font Awesome Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Import Three.js & OrbitControls from CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo-area">
+        <div class="logo-icon"><i class="fa-solid fa-robot"></i></div>
+        <div>
+          <h1>VLA Embodied Memory & Digital Twin</h1>
+          <p class="subtitle">MuJoCo Off-Screen Render • Three.js 3D Franka Panda Twin • Spatial Tracker Overlay</p>
+        </div>
+      </div>
+      
+      <div class="header-status">
+        <div class="status-badge" id="vla-model-badge">
+          <i class="fa-solid fa-brain"></i> Model: <span id="vla-model-name">Octo-Small</span>
+        </div>
+        <div class="status-badge" id="fps-badge">
+          <i class="fa-solid fa-gauge-high"></i> FPS: <span id="fps-val">--</span>
+        </div>
+        <div class="status-badge" id="occlusion-badge">
+          <i class="fa-solid fa-eye"></i> Occlusion: <span id="occlusion-val">Visible</span>
+        </div>
+        <div class="status-badge live-dot">
+          <span class="pulse-dot"></span> LIVE STREAM
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Dual Panel Section -->
+    <main class="dashboard-grid">
+      <!-- Left Panel: Perception & MuJoCo Offscreen Rendering -->
+      <section class="card panel-perception">
+        <div class="card-header">
+          <h2><i class="fa-solid fa-video"></i> MuJoCo Perception View (Off-screen Render)</h2>
+          <div class="cam-controls">
+            <label for="cam-select"><i class="fa-solid fa-camera"></i> Camera:</label>
+            <select id="cam-select">
+              <option value="overhead_cam">Overhead Camera (Top)</option>
+              <option value="wrist_cam">Wrist Camera (Hand)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="video-container">
+          <img id="stream-frame" src="" alt="MuJoCo Offscreen Stream" />
+          <div class="video-overlay-banner" id="prompt-overlay">
+            <span class="badge-tag">DYNAMIC PROMPT</span>
+            <span id="overlay-prompt-text">Initializing VLA state...</span>
+          </div>
+        </div>
+
+        <div class="panel-footer-info">
+          <div class="info-item">
+            <span class="info-label">Tracking Points:</span>
+            <span class="info-value" id="track-points-val">10 active (TAPIR/CoTracker)</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Painter Overlay:</span>
+            <span class="info-value text-green"><i class="fa-solid fa-circle"></i> Visible / <i class="fa-solid fa-circle text-red"></i> Occluded</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Panel: Three.js 3D Digital Twin View -->
+      <section class="card panel-digital-twin">
+        <div class="card-header">
+          <h2><i class="fa-solid fa-cubes"></i> Three.js 3D Digital Twin (Franka Panda & Checkerboard)</h2>
+          <button id="btn-reset-view" class="btn-icon" title="Reset View Angle">
+            <i class="fa-solid fa-arrows-rotate"></i> Reset View
+          </button>
+        </div>
+
+        <div class="canvas-container" id="three-canvas-container">
+          <!-- Three.js Canvas injected here -->
+          <div class="canvas-overlay-telemetry">
+            <div class="telemetry-card">
+              <h4><i class="fa-solid fa-sliders"></i> Joint Angles (qpos)</h4>
+              <div class="joint-grid" id="joint-telemetry-grid">
+                <div>J1: <span id="j1-val">0.00</span>°</div>
+                <div>J2: <span id="j2-val">0.00</span>°</div>
+                <div>J3: <span id="j3-val">0.00</span>°</div>
+                <div>J4: <span id="j4-val">0.00</span>°</div>
+                <div>J5: <span id="j5-val">0.00</span>°</div>
+                <div>J6: <span id="j6-val">0.00</span>°</div>
+                <div>J7: <span id="j7-val">0.00</span>°</div>
+                <div>Gripper: <span id="grp-val">Open</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-footer-info">
+          <div class="info-item">
+            <span class="info-label">TCP Pos (XYZ):</span>
+            <span class="info-value" id="tcp-xyz-val">[0.50, 0.00, 0.45] m</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Target Pos (XYZ):</span>
+            <span class="info-value" id="target-xyz-val">[0.55, 0.15, 0.38] m</span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Bottom Section: Chronicler Log & Command Controls -->
+    <footer class="controls-and-logs">
+      <!-- Human Command Input Bar -->
+      <div class="command-bar card">
+        <div class="command-input-group">
+          <i class="fa-solid fa-terminal prompt-icon"></i>
+          <input type="text" id="human-command-input" value="Grasp the orange object" placeholder="Enter natural language instruction (e.g. Grasp the orange object)..." />
+          <button id="btn-send-command" class="btn-primary">
+            <i class="fa-solid fa-paper-plane"></i> Send Instruction
+          </button>
+        </div>
+        <div class="action-buttons">
+          <button id="btn-reposition-target" class="btn-secondary">
+            <i class="fa-solid fa-location-dot"></i> Move Target Randomly
+          </button>
+          <button id="btn-reset-sim" class="btn-danger">
+            <i class="fa-solid fa-rotate-left"></i> Reset Physics
+          </button>
+        </div>
+      </div>
+
+      <!-- Chronicler Memory Log Feed -->
+      <div class="chronicler-feed card">
+        <div class="card-header-sm">
+          <h3><i class="fa-solid fa-clock-rotate-left"></i> The Chronicler — Memory-as-a-Prompt Stream</h3>
+          <span class="feed-rate">Tick Rate: 7.0 Hz</span>
+        </div>
+        <div class="log-container" id="chronicler-log-list">
+          <div class="log-item">
+            <span class="log-time">[00:00:00]</span>
+            <span class="log-prompt">[Task]: Grasp the orange object | [Status]: Target initialized on table surface. Gripper open.</span>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

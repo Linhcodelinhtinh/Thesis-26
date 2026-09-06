@@ -1,0 +1,47 @@
+# VLA Multi-Modal Memory Architecture Configuration
+
+# VLA Model Selection: "octo" (default), "mock", "openvla", "pi0", "rtx"
+vla_model: "octo"
+
+# Octo Checkpoint Type: "octo-small" (~27M), "octo-base" (~93M)
+octo_checkpoint: "octo-small"
+
+# Point Tracker Selection: "opencv_fallback" (default), "tapir" (experimental)
+tracker_type: "opencv_fallback"
+
+# Chronicler (Memory-as-a-Prompt) Settings
+chronicler:
+  enabled: true
+  use_real_vlm: true                  # Set to true to load full VLM weights from HF
+  vlm_model: "HuggingFaceTB/SmolVLM-Instruct" # Alternative: "Qwen/Qwen2-VL-2B-Instruct", "Salesforce/blip-image-captioning"
+  device: "auto"                       # "auto", "cuda", or "cpu"
+  tick_rate_hz: 7.0                    # Chronicler update loop frequency
+  max_history_length: 5                # Steps of past state memory preserved in prompt
+  prompt_template: "[Task]: {task} | [Status]: {status} | [Memory]: {memory}"
+
+# MuJoCo 3D Physics Simulation Settings
+mujoco:
+  scene_path: "assets/franka_table_scene.xml"
+  sim_fps: 50
+  control_freq: 10
+  substeps_per_action: 20
+  viewer: true
+  render_width: 640
+  render_height: 480
+  default_camera: "overhead_cam"
+
+# 2D Interactive Simulation Settings
+simulation:
+  enabled: true
+  fps: 15
+  arm_speed: 0.1
+  occlusion_radius: 40
+
+# Model paths or Hugging Face repository IDs
+model_paths:
+  octo_small: "hf://rail-berkeley/octo-small-1.5"
+  octo_base: "hf://rail-berkeley/octo-base-1.5"
+  openvla: "openvla/openvla-7b"
+  pi0: "physical-intelligence/pi0"
+  rtx: "google/rt-x"
+  tapir: "weights/tapir_checkpoint.pth"
