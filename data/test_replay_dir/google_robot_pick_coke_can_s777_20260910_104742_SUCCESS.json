@@ -1,0 +1,1566 @@
+{
+  "metadata": {
+    "task_name": "google_robot_pick_coke_can",
+    "task_version": "1.0.0",
+    "simpler_env_version": "0.1.0",
+    "seed": 777,
+    "timestamp_start_iso": "2026-09-10T03:47:42.941028+00:00",
+    "timestamp_start_epoch": 1789012062.9410286,
+    "config_hash": "44136fa355b3",
+    "robot_type": "google_robot",
+    "source": "test_replay",
+    "action_chunk_size": 1,
+    "control_frequency_hz": 10.0,
+    "camera_calibration": {},
+    "total_steps": 22,
+    "final_success": true,
+    "duration_seconds": 0.03,
+    "saved_files": {
+      "json": "google_robot_pick_coke_can_s777_20260910_104742_SUCCESS.json",
+      "npz": "google_robot_pick_coke_can_s777_20260910_104742_SUCCESS.npz",
+      "video": "google_robot_pick_coke_can_s777_20260910_104742_SUCCESS.mp4"
+    }
+  },
+  "steps": [
+    {
+      "step_index": 0,
+      "timestamp_elapsed_ms": 1.1,
+      "timestamp_epoch": 1789012062.942124,
+      "observation": {
+        "instruction": "pick coke can",
+        "dynamic_prompt": "",
+        "tcp_pos": [
+          0.4716,
+          -0.01259,
+          0.52
+        ],
+        "tcp_rot_euler": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "gripper_width": 1.0,
+        "joint_positions": [
+          -0.02518,
+          -0.4432,
+          0.0,
+          -1.8,
+          0.0,
+          1.4,
+          0.0
+        ],
+        "joint_velocities": [
+          -0.2518,
+          -0.43197,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_pos": [
+          0.49068647623062134,
+          -0.023717205971479416,
+          0.3799999952316284
+        ]
+      },
+      "action": [
+        0.0216,
+        -0.01259,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "action_chunk": null,
+      "reward": 0.5748,
+      "terminated": false,
+      "truncated": false,
+      "success": false,
+      "info": {
+        "success": false,
+        "step": 1,
+        "reward": 0.5748,
+        "is_grasped": false,
+        "lift_height": 0.0,
+        "drawer_displacement": 0.0
+      },
+      "subgoals": {
+        "approached": false,
+        "grasped": false,
+        "lifted": false
+      }
+    },
+    {
+      "step_index": 1,
+      "timestamp_elapsed_ms": 1.64,
+      "timestamp_epoch": 1789012062.942668,
+      "observation": {
+        "instruction": "pick coke can",
+        "dynamic_prompt": "",
+        "tcp_pos": [
+          0.49069,
+          -0.02372,
+          0.52
+        ],
+        "tcp_rot_euler": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "gripper_width": 1.0,
+        "joint_positions": [
+          -0.04743,
+          -0.48137,
+          0.0,
+          -1.8,
+          0.0,
+          1.4,
+          0.0
+        ],
+        "joint_velocities": [
+          -0.22254,
+          -0.38176,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_pos": [
+          0.49068647623062134,
+          -0.023717205971479416,
+          0.3799999952316284
+        ]
+      },
+      "action": [
+        0.01909,
+        -0.01113,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "action_chunk": null,
+      "reward": 0.58,
+      "terminated": false,
+      "truncated": false,
+      "success": false,
+      "info": {
+        "success": false,
+        "step": 2,
+        "reward": 0.58,
+        "is_grasped": false,
+        "lift_height": 0.0,
+        "drawer_displacement": 0.0
+      },
+      "subgoals": {
+        "approached": false,
+        "grasped": false,
+        "lifted": false
+      }
+    },
+    {
+      "step_index": 2,
+      "timestamp_elapsed_ms": 2.69,
+      "timestamp_epoch": 1789012062.943722,
+      "observation": {
+        "instruction": "pick coke can",
+        "dynamic_prompt": "",
+        "tcp_pos": [
+          0.49069,
+          -0.02372,
+          0.52
+        ],
+        "tcp_rot_euler": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "gripper_width": 1.0,
+        "joint_positions": [
+          -0.04743,
+          -0.48137,
+          0.0,
+          -1.8,
+          0.0,
+          1.4,
+          0.0
+        ],
+        "joint_velocities": [
+          0.0,
+          -0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_pos": [
+          0.49068647623062134,
+          -0.023717205971479416,
+          0.3799999952316284
+        ]
+      },
+      "action": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "action_chunk": null,
+      "reward": 0.58,
+      "terminated": false,
+      "truncated": false,
+      "success": false,
+      "info": {
+        "success": false,
+        "step": 3,
+        "reward": 0.58,
+        "is_grasped": false,
+        "lift_height": 0.0,
+        "drawer_displacement": 0.0
+      },
+      "subgoals": {
+        "approached": false,
+        "grasped": false,
+        "lifted": false
+      }
+    },
+    {
+      "step_index": 3,
+      "timestamp_elapsed_ms": 3.75,
+      "timestamp_epoch": 1789012062.9447782,
+      "observation": {
+        "instruction": "pick coke can",
+        "dynamic_prompt": "",
+        "tcp_pos": [
+          0.49069,
+          -0.02372,
+          0.502
+        ],
+        "tcp_rot_euler": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "gripper_width": 1.0,
+        "joint_positions": [
+          -0.04743,
+          -0.48137,
+          0.0,
+          -1.836,
+          0.0,
+          1.4,
+          0.0
+        ],
+        "joint_velocities": [
+          0.0,
+          -0.0,
+          0.0,
+          -0.36,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_pos": [
+          0.49068647623062134,
+          -0.023717205971479416,
+          0.3799999952316284
+        ]
+      },
+      "action": [
+        0.0,
+        0.0,
+        -0.018,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "action_chunk": null,
+      "reward": 0.634,
+      "terminated": false,
+      "truncated": false,
+      "success": false,
+      "info": {
+        "success": false,
+        "step": 4,
+        "reward": 0.634,
+        "is_grasped": false,
+        "lift_height": 0.0,
+        "drawer_displacement": 0.0
+      },
+      "subgoals": {
+        "approached": false,
+        "grasped": false,
+        "lifted": false
+      }
+    },
+    {
+      "step_index": 4,
+      "timestamp_elapsed_ms": 4.28,
+      "timestamp_epoch": 1789012062.945305,
+      "observation": {
+        "instruction": "pick coke can",
+        "dynamic_prompt": "",
+        "tcp_pos": [
+          0.49069,
+          -0.02372,
+          0.484
+        ],
+        "tcp_rot_euler": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "gripper_width": 1.0,
+        "joint_positions": [
+          -0.04743,
+          -0.48137,
+          0.0,
+          -1.872,
+          0.0,
+          1.4,
+          0.0
+        ],
+        "joint_velocities": [
+          0.0,
+          -0.0,
+          0.0,
+          -0.36,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_pos": [
+          0.49068647623062134,
+          -0.023717205971479416,
+          0.3799999952316284
+        ]
+      },
+      "action": [
+        0.0,
+        0.0,
+        -0.018,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "action_chunk": null,
+      "reward": 0.688,
+      "terminated": false,
+      "truncated": false,
+      "success": false,
+      "info": {
+        "success": false,
+        "step": 5,
+        "reward": 0.688,
+        "is_grasped": false,
+        "lift_height": 0.0,
+        "drawer_displacement": 0.0
+      },
+      "subgoals": {
+        "approached": false,
+        "grasped": false,
+        "lifted": false
+      }
+    },
+    {
+      "step_index": 5,
+      "timestamp_elapsed_ms": 5.35,
+      "timestamp_epoch": 1789012062.946383,
+      "observation": {
+        "instruction": "pick coke can",
+        "dynamic_prompt": "",
+        "tcp_pos": [
+          0.49069,
+          -0.02372,
+          0.466
+        ],
+        "tcp_rot_euler": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "gripper_width": 1.0,
+        "joint_positions": [
+          -0.04743,
+          -0.48137,
+          0.0,
+          -1.908,
+          0.0,
+          1.4,
+          0.0
+        ],
+        "joint_velocities": [
+          0.0,
+          -0.0,
+          0.0,
+          -0.36,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_pos": [
+          0.49068647623062134,
+          -0.023717205971479416,
+          0.3799999952316284
+        ]
+      },
+      "action": [
+        0.0,
+        0.0,
+        -0.018,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "action_chunk": null,
+      "reward": 0.742,
+      "terminated": false,
+      "truncated": false,
+      "success": false,
+      "info": {
+        "success": false,
+        "step": 6,
+        "reward": 0.742,
+        "is_grasped": false,
+        "lift_height": 0.0,
+        "drawer_displacement": 0.0
+      },
+      "subgoals": {
+        "approached": false,
+        "grasped": false,
+        "lifted": false
+      }
+    },
+    {
+      "step_index": 6,
+      "timestamp_elapsed_ms": 6.42,
+      "timestamp_epoch": 1789012062.9474452,
+      "observation": {
+        "instruction": "pick coke can",
+        "dynamic_prompt": "",
+        "tcp_pos": [
+          0.49069,
+          -0.02372,
+          0.448
+        ],
+        "tcp_rot_euler": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "gripper_width": 1.0,
+        "joint_positions": [
+          -0.04743,
+          -0.48137,
+          0.0,
+          -1.944,
+          0.0,
+          1.4,
+          0.0
+        ],
+        "joint_velocities": [
+          0.0,
+          -0.0,
+          0.0,
+          -0.36,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_pos": [
+          0.49068647623062134,
+          -0.023717205971479416,
+          0.3799999952316284
+        ]
+      },
+      "action": [
+        0.0,
+        0.0,
+        -0.018,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "action_chunk": null,
+      "reward": 0.796,
+      "terminated": false,
+      "truncated": false,
+      "success": false,
+      "info": {
+        "success": false,
+        "step": 7,
+        "reward": 0.796,
+        "is_grasped": false,
+        "lift_height": 0.0,
+        "drawer_displacement": 0.0
+      },
+      "subgoals": {
+        "approached": false,
+        "grasped": false,
+        "lifted": false
+      }
+    },
+    {
+      "step_index": 7,
+      "timestamp_elapsed_ms": 7.48,
+      "timestamp_epoch": 1789012062.9485083,
+      "observation": {
+        "instruction": "pick coke can",
+        "dynamic_prompt": "",
+        "tcp_pos": [
+          0.49069,
+          -0.02372,
+          0.43
+        ],
+        "tcp_rot_euler": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "gripper_width": 1.0,
+        "joint_positions": [
+          -0.04743,
+          -0.48137,
+          0.0,
+          -1.98,
+          0.0,
+          1.4,
+          0.0
+        ],
+        "joint_velocities": [
+          0.0,
+          -0.0,
+          0.0,
+          -0.36,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_pos": [
+          0.49068647623062134,
+          -0.023717205971479416,
+          0.3799999952316284
+        ]
+      },
+      "action": [
+        0.0,
+        0.0,
+        -0.018,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "action_chunk": null,
+      "reward": 0.85,
+      "terminated": false,
+      "truncated": false,
+      "success": false,
+      "info": {
+        "success": false,
+        "step": 8,
+        "reward": 0.85,
+        "is_grasped": false,
+        "lift_height": 0.0,
+        "drawer_displacement": 0.0
+      },
+      "subgoals": {
+        "approached": false,
+        "grasped": false,
+        "lifted": false
+      }
+    },
+    {
+      "step_index": 8,
+      "timestamp_elapsed_ms": 9.3,
+      "timestamp_epoch": 1789012062.9503322,
+      "observation": {
+        "instruction": "pick coke can",
+        "dynamic_prompt": "",
+        "tcp_pos": [
+          0.49069,
+          -0.02372,
+          0.412
+        ],
+        "tcp_rot_euler": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "gripper_width": 1.0,
+        "joint_positions": [
+          -0.04743,
+          -0.48137,
+          0.0,
+          -2.016,
+          0.0,
+          1.4,
+          0.0
+        ],
+        "joint_velocities": [
+          0.0,
+          -0.0,
+          0.0,
+          -0.36,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_pos": [
+          0.49068647623062134,
+          -0.023717205971479416,
+          0.3799999952316284
+        ]
+      },
+      "action": [
+        0.0,
+        0.0,
+        -0.018,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "action_chunk": null,
+      "reward": 0.904,
+      "terminated": false,
+      "truncated": false,
+      "success": false,
+      "info": {
+        "success": false,
+        "step": 9,
+        "reward": 0.904,
+        "is_grasped": false,
+        "lift_height": 0.0,
+        "drawer_displacement": 0.0
+      },
+      "subgoals": {
+        "approached": true,
+        "grasped": false,
+        "lifted": false
+      }
+    },
+    {
+      "step_index": 9,
+      "timestamp_elapsed_ms": 9.3,
+      "timestamp_epoch": 1789012062.9503322,
+      "observation": {
+        "instruction": "pick coke can",
+        "dynamic_prompt": "",
+        "tcp_pos": [
+          0.49069,
+          -0.02372,
+          0.394
+        ],
+        "tcp_rot_euler": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "gripper_width": 1.0,
+        "joint_positions": [
+          -0.04743,
+          -0.48137,
+          0.0,
+          -2.052,
+          0.0,
+          1.4,
+          0.0
+        ],
+        "joint_velocities": [
+          0.0,
+          -0.0,
+          0.0,
+          -0.36,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_pos": [
+          0.49068647623062134,
+          -0.023717205971479416,
+          0.3799999952316284
+        ]
+      },
+      "action": [
+        0.0,
+        0.0,
+        -0.018,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "action_chunk": null,
+      "reward": 0.958,
+      "terminated": false,
+      "truncated": false,
+      "success": false,
+      "info": {
+        "success": false,
+        "step": 10,
+        "reward": 0.958,
+        "is_grasped": false,
+        "lift_height": 0.0,
+        "drawer_displacement": 0.0
+      },
+      "subgoals": {
+        "approached": true,
+        "grasped": false,
+        "lifted": false
+      }
+    },
+    {
+      "step_index": 10,
+      "timestamp_elapsed_ms": 9.3,
+      "timestamp_epoch": 1789012062.9503322,
+      "observation": {
+        "instruction": "pick coke can",
+        "dynamic_prompt": "",
+        "tcp_pos": [
+          0.49069,
+          -0.02372,
+          0.376
+        ],
+        "tcp_rot_euler": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "gripper_width": 1.0,
+        "joint_positions": [
+          -0.04743,
+          -0.48137,
+          0.0,
+          -2.088,
+          0.0,
+          1.4,
+          0.0
+        ],
+        "joint_velocities": [
+          0.0,
+          -0.0,
+          0.0,
+          -0.36,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_pos": [
+          0.49068647623062134,
+          -0.023717205971479416,
+          0.3799999952316284
+        ]
+      },
+      "action": [
+        0.0,
+        0.0,
+        -0.018,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "action_chunk": null,
+      "reward": 0.988,
+      "terminated": false,
+      "truncated": false,
+      "success": false,
+      "info": {
+        "success": false,
+        "step": 11,
+        "reward": 0.988,
+        "is_grasped": false,
+        "lift_height": 0.0,
+        "drawer_displacement": 0.0
+      },
+      "subgoals": {
+        "approached": true,
+        "grasped": false,
+        "lifted": false
+      }
+    },
+    {
+      "step_index": 11,
+      "timestamp_elapsed_ms": 9.3,
+      "timestamp_epoch": 1789012062.9503322,
+      "observation": {
+        "instruction": "pick coke can",
+        "dynamic_prompt": "",
+        "tcp_pos": [
+          0.49069,
+          -0.02372,
+          0.376
+        ],
+        "tcp_rot_euler": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "gripper_width": 1.0,
+        "joint_positions": [
+          -0.04743,
+          -0.48137,
+          0.0,
+          -2.088,
+          0.0,
+          1.4,
+          0.0
+        ],
+        "joint_velocities": [
+          0.0,
+          -0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_pos": [
+          0.49068647623062134,
+          -0.023717205971479416,
+          0.3799999952316284
+        ]
+      },
+      "action": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "action_chunk": null,
+      "reward": 0.988,
+      "terminated": false,
+      "truncated": false,
+      "success": false,
+      "info": {
+        "success": false,
+        "step": 12,
+        "reward": 0.988,
+        "is_grasped": false,
+        "lift_height": 0.0,
+        "drawer_displacement": 0.0
+      },
+      "subgoals": {
+        "approached": true,
+        "grasped": false,
+        "lifted": false
+      }
+    },
+    {
+      "step_index": 12,
+      "timestamp_elapsed_ms": 9.3,
+      "timestamp_epoch": 1789012062.9503322,
+      "observation": {
+        "instruction": "pick coke can",
+        "dynamic_prompt": "",
+        "tcp_pos": [
+          0.49069,
+          -0.02372,
+          0.376
+        ],
+        "tcp_rot_euler": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "gripper_width": 0.6,
+        "joint_positions": [
+          -0.04743,
+          -0.48137,
+          0.0,
+          -2.088,
+          0.0,
+          1.4,
+          0.0
+        ],
+        "joint_velocities": [
+          0.0,
+          -0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_pos": [
+          0.49068647623062134,
+          -0.023717205971479416,
+          0.3799999952316284
+        ]
+      },
+      "action": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "action_chunk": null,
+      "reward": 0.988,
+      "terminated": false,
+      "truncated": false,
+      "success": false,
+      "info": {
+        "success": false,
+        "step": 13,
+        "reward": 0.988,
+        "is_grasped": false,
+        "lift_height": 0.0,
+        "drawer_displacement": 0.0
+      },
+      "subgoals": {
+        "approached": true,
+        "grasped": false,
+        "lifted": false
+      }
+    },
+    {
+      "step_index": 13,
+      "timestamp_elapsed_ms": 9.3,
+      "timestamp_epoch": 1789012062.9503322,
+      "observation": {
+        "instruction": "pick coke can",
+        "dynamic_prompt": "",
+        "tcp_pos": [
+          0.49069,
+          -0.02372,
+          0.376
+        ],
+        "tcp_rot_euler": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "gripper_width": 0.36,
+        "joint_positions": [
+          -0.04743,
+          -0.48137,
+          0.0,
+          -2.088,
+          0.0,
+          1.4,
+          0.0
+        ],
+        "joint_velocities": [
+          0.0,
+          -0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_pos": [
+          0.49068647623062134,
+          -0.023717205971479416,
+          0.3799999952316284
+        ]
+      },
+      "action": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "action_chunk": null,
+      "reward": 0.5,
+      "terminated": false,
+      "truncated": false,
+      "success": false,
+      "info": {
+        "success": false,
+        "step": 14,
+        "reward": 0.5,
+        "is_grasped": true,
+        "lift_height": 0.0,
+        "drawer_displacement": 0.0
+      },
+      "subgoals": {
+        "approached": true,
+        "grasped": true,
+        "lifted": false
+      }
+    },
+    {
+      "step_index": 14,
+      "timestamp_elapsed_ms": 17.2,
+      "timestamp_epoch": 1789012062.9582295,
+      "observation": {
+        "instruction": "pick coke can",
+        "dynamic_prompt": "",
+        "tcp_pos": [
+          0.49069,
+          -0.02372,
+          0.376
+        ],
+        "tcp_rot_euler": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "gripper_width": 0.216,
+        "joint_positions": [
+          -0.04743,
+          -0.48137,
+          0.0,
+          -2.088,
+          0.0,
+          1.4,
+          0.0
+        ],
+        "joint_velocities": [
+          0.0,
+          -0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_pos": [
+          0.49068647623062134,
+          -0.023717205971479416,
+          0.3799999952316284
+        ]
+      },
+      "action": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "action_chunk": null,
+      "reward": 0.5,
+      "terminated": false,
+      "truncated": false,
+      "success": false,
+      "info": {
+        "success": false,
+        "step": 15,
+        "reward": 0.5,
+        "is_grasped": true,
+        "lift_height": 0.0,
+        "drawer_displacement": 0.0
+      },
+      "subgoals": {
+        "approached": true,
+        "grasped": true,
+        "lifted": false
+      }
+    },
+    {
+      "step_index": 15,
+      "timestamp_elapsed_ms": 17.2,
+      "timestamp_epoch": 1789012062.9582295,
+      "observation": {
+        "instruction": "pick coke can",
+        "dynamic_prompt": "",
+        "tcp_pos": [
+          0.49069,
+          -0.02372,
+          0.376
+        ],
+        "tcp_rot_euler": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "gripper_width": 0.1296,
+        "joint_positions": [
+          -0.04743,
+          -0.48137,
+          0.0,
+          -2.088,
+          0.0,
+          1.4,
+          0.0
+        ],
+        "joint_velocities": [
+          0.0,
+          -0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_pos": [
+          0.49068647623062134,
+          -0.023717205971479416,
+          0.3799999952316284
+        ]
+      },
+      "action": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "action_chunk": null,
+      "reward": 0.5,
+      "terminated": false,
+      "truncated": false,
+      "success": false,
+      "info": {
+        "success": false,
+        "step": 16,
+        "reward": 0.5,
+        "is_grasped": true,
+        "lift_height": 0.0,
+        "drawer_displacement": 0.0
+      },
+      "subgoals": {
+        "approached": true,
+        "grasped": true,
+        "lifted": false
+      }
+    },
+    {
+      "step_index": 16,
+      "timestamp_elapsed_ms": 17.2,
+      "timestamp_epoch": 1789012062.9582295,
+      "observation": {
+        "instruction": "pick coke can",
+        "dynamic_prompt": "",
+        "tcp_pos": [
+          0.49069,
+          -0.02372,
+          0.398
+        ],
+        "tcp_rot_euler": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "gripper_width": 0.0778,
+        "joint_positions": [
+          -0.04743,
+          -0.48137,
+          0.0,
+          -2.044,
+          0.0,
+          1.4,
+          0.0
+        ],
+        "joint_velocities": [
+          0.0,
+          -0.0,
+          0.0,
+          0.44,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_pos": [
+          0.49068647623062134,
+          -0.023717205971479416,
+          0.3799999952316284
+        ]
+      },
+      "action": [
+        0.0,
+        0.0,
+        0.022,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "action_chunk": null,
+      "reward": 0.5,
+      "terminated": false,
+      "truncated": false,
+      "success": false,
+      "info": {
+        "success": false,
+        "step": 17,
+        "reward": 0.5,
+        "is_grasped": true,
+        "lift_height": 0.0,
+        "drawer_displacement": 0.0
+      },
+      "subgoals": {
+        "approached": true,
+        "grasped": true,
+        "lifted": false
+      }
+    },
+    {
+      "step_index": 17,
+      "timestamp_elapsed_ms": 17.2,
+      "timestamp_epoch": 1789012062.9582295,
+      "observation": {
+        "instruction": "pick coke can",
+        "dynamic_prompt": "",
+        "tcp_pos": [
+          0.49069,
+          -0.02372,
+          0.42
+        ],
+        "tcp_rot_euler": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "gripper_width": 0.0467,
+        "joint_positions": [
+          -0.04743,
+          -0.48137,
+          0.0,
+          -2.0,
+          0.0,
+          1.4,
+          0.0
+        ],
+        "joint_velocities": [
+          0.0,
+          -0.0,
+          0.0,
+          0.44,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_pos": [
+          0.49068647623062134,
+          -0.023717205971479416,
+          0.3999999463558197
+        ]
+      },
+      "action": [
+        0.0,
+        0.0,
+        0.022,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "action_chunk": null,
+      "reward": 0.5,
+      "terminated": false,
+      "truncated": false,
+      "success": false,
+      "info": {
+        "success": false,
+        "step": 18,
+        "reward": 0.5,
+        "is_grasped": true,
+        "lift_height": 0.02,
+        "drawer_displacement": 0.0
+      },
+      "subgoals": {
+        "approached": true,
+        "grasped": true,
+        "lifted": false
+      }
+    },
+    {
+      "step_index": 18,
+      "timestamp_elapsed_ms": 17.2,
+      "timestamp_epoch": 1789012062.9582295,
+      "observation": {
+        "instruction": "pick coke can",
+        "dynamic_prompt": "",
+        "tcp_pos": [
+          0.49069,
+          -0.02372,
+          0.442
+        ],
+        "tcp_rot_euler": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "gripper_width": 0.028,
+        "joint_positions": [
+          -0.04743,
+          -0.48137,
+          0.0,
+          -1.956,
+          0.0,
+          1.4,
+          0.0
+        ],
+        "joint_velocities": [
+          0.0,
+          -0.0,
+          0.0,
+          0.44,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_pos": [
+          0.49068647623062134,
+          -0.023717205971479416,
+          0.4219999611377716
+        ]
+      },
+      "action": [
+        0.0,
+        0.0,
+        0.022,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "action_chunk": null,
+      "reward": 0.5,
+      "terminated": false,
+      "truncated": false,
+      "success": false,
+      "info": {
+        "success": false,
+        "step": 19,
+        "reward": 0.5,
+        "is_grasped": true,
+        "lift_height": 0.042,
+        "drawer_displacement": 0.0
+      },
+      "subgoals": {
+        "approached": false,
+        "grasped": true,
+        "lifted": false
+      }
+    },
+    {
+      "step_index": 19,
+      "timestamp_elapsed_ms": 17.2,
+      "timestamp_epoch": 1789012062.9582295,
+      "observation": {
+        "instruction": "pick coke can",
+        "dynamic_prompt": "",
+        "tcp_pos": [
+          0.49069,
+          -0.02372,
+          0.464
+        ],
+        "tcp_rot_euler": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "gripper_width": 0.0168,
+        "joint_positions": [
+          -0.04743,
+          -0.48137,
+          0.0,
+          -1.912,
+          0.0,
+          1.4,
+          0.0
+        ],
+        "joint_velocities": [
+          0.0,
+          -0.0,
+          0.0,
+          0.44,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_pos": [
+          0.49068647623062134,
+          -0.023717205971479416,
+          0.4439999759197235
+        ]
+      },
+      "action": [
+        0.0,
+        0.0,
+        0.022,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "action_chunk": null,
+      "reward": 0.5,
+      "terminated": false,
+      "truncated": false,
+      "success": false,
+      "info": {
+        "success": false,
+        "step": 20,
+        "reward": 0.5,
+        "is_grasped": true,
+        "lift_height": 0.064,
+        "drawer_displacement": 0.0
+      },
+      "subgoals": {
+        "approached": false,
+        "grasped": true,
+        "lifted": true
+      }
+    },
+    {
+      "step_index": 20,
+      "timestamp_elapsed_ms": 25.5,
+      "timestamp_epoch": 1789012062.9665318,
+      "observation": {
+        "instruction": "pick coke can",
+        "dynamic_prompt": "",
+        "tcp_pos": [
+          0.49069,
+          -0.02372,
+          0.486
+        ],
+        "tcp_rot_euler": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "gripper_width": 0.0101,
+        "joint_positions": [
+          -0.04743,
+          -0.48137,
+          0.0,
+          -1.868,
+          0.0,
+          1.4,
+          0.0
+        ],
+        "joint_velocities": [
+          0.0,
+          -0.0,
+          0.0,
+          0.44,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_pos": [
+          0.49068647623062134,
+          -0.023717205971479416,
+          0.4659999907016754
+        ]
+      },
+      "action": [
+        0.0,
+        0.0,
+        0.022,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "action_chunk": null,
+      "reward": 0.5,
+      "terminated": false,
+      "truncated": false,
+      "success": false,
+      "info": {
+        "success": false,
+        "step": 21,
+        "reward": 0.5,
+        "is_grasped": true,
+        "lift_height": 0.086,
+        "drawer_displacement": 0.0
+      },
+      "subgoals": {
+        "approached": false,
+        "grasped": true,
+        "lifted": true
+      }
+    },
+    {
+      "step_index": 21,
+      "timestamp_elapsed_ms": 25.5,
+      "timestamp_epoch": 1789012062.9665318,
+      "observation": {
+        "instruction": "pick coke can",
+        "dynamic_prompt": "",
+        "tcp_pos": [
+          0.49069,
+          -0.02372,
+          0.508
+        ],
+        "tcp_rot_euler": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "gripper_width": 0.006,
+        "joint_positions": [
+          -0.04743,
+          -0.48137,
+          0.0,
+          -1.824,
+          0.0,
+          1.4,
+          0.0
+        ],
+        "joint_velocities": [
+          0.0,
+          -0.0,
+          0.0,
+          0.44,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "target_pos": [
+          0.49068647623062134,
+          -0.023717205971479416,
+          0.4880000054836273
+        ]
+      },
+      "action": [
+        0.0,
+        0.0,
+        0.022,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "action_chunk": null,
+      "reward": 1.0,
+      "terminated": true,
+      "truncated": false,
+      "success": true,
+      "info": {
+        "success": true,
+        "step": 22,
+        "reward": 1.0,
+        "is_grasped": true,
+        "lift_height": 0.108,
+        "drawer_displacement": 0.0
+      },
+      "subgoals": {
+        "approached": false,
+        "grasped": true,
+        "lifted": true
+      }
+    }
+  ]
+}

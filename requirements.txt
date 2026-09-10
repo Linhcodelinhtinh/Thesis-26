@@ -1,8 +1,44 @@
-mujoco>=3.0.0
-glfw>=2.5.0
-PyOpenGL>=3.1.0
-numpy>=1.20.0
-opencv-python>=4.5.0
-pyyaml>=6.0
+# ==============================================================================
+# Thesis-26: VLA Embodied Memory & SimplerEnv Evaluation Platform
+# ==============================================================================
+
+# Core Math & Deep Learning
+numpy>=1.22.0
+scipy>=1.9.0
 torch>=2.0.0
-transformers>=4.30.0
+transformers>=4.35.0
+peft>=0.7.0
+accelerate>=0.25.0
+
+# Vision & Graphics
+opencv-python>=4.7.0
+pillow>=9.5.0
+transforms3d>=0.4.1
+
+# Environment & Reinforcement Learning / Robotics
+gymnasium>=0.28.0
+pyyaml>=6.0
+
+# Trajectory Logging & Dataset Storage
+h5py>=3.8.0
+tqdm>=4.65.0
+
+# ==============================================================================
+# HƯỚNG DẪN CÀI ĐẶT BỘ MÔ PHỎNG NATIVE SIMPLERENV (ManiSkill2 / SAPIEN)
+# ==============================================================================
+# Để kích hoạt Native SimplerEnv với GPU Rendering (SAPIEN / Vulkan / EGL):
+# Khuyến nghị chạy trong môi trường Linux / Ubuntu 22.04 (hoặc WSL2 / Docker GPU):
+#
+# 1. Cài đặt ManiSkill2 & SAPIEN:
+#    pip install mani-skill2==0.5.3
+#    pip install sapien==2.2.2
+#
+# 2. Cài đặt SimplerEnv từ repository chính thức:
+#    pip install git+https://github.com/simpler-env/SimplerEnv.git
+#
+# 3. Tải assets/mô hình 3D (Google Robot, WidowX, Drawer, Cans):
+#    python -m mani_skill2.utils.download_asset all
+#
+# Lưu ý: Khi chạy trên Windows hoặc máy chưa có SAPIEN/Vulkan, hệ thống sẽ tự động
+# sử dụng High-Fidelity Standalone Emulation Mode trong simpler_env_adapter.py
+# để đảm bảo 100% API, Observation, Action Space, và Success Condition tương thích.

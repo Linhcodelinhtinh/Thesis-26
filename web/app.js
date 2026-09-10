@@ -21,6 +21,11 @@ const overlayPromptEl = document.getElementById('overlay-prompt-text');
 const fpsValEl = document.getElementById('fps-val');
 const occlusionValEl = document.getElementById('occlusion-val');
 const vlaModelNameEl = document.getElementById('vla-model-name');
+const taskStatusValEl = document.getElementById('task-status-val');
+const taskStatusNameEl = document.getElementById('task-status-name');
+const taskInstructionBadgeEl = document.getElementById('task-instruction-badge');
+const taskResultBannerEl = document.getElementById('task-result-banner');
+const taskResultTextEl = document.getElementById('task-result-text');
 
 // Telemetry DOM Elements
 const tcpXyzEl = document.getElementById('tcp-xyz-val');
@@ -450,6 +455,39 @@ function initStreamConnection() {
       // 3. Update VLA Model Name & Metrics Badges
       if (data.vla_model) {
         vlaModelNameEl.innerText = data.vla_model;
+      }
+
+      if (data.task_name && taskStatusNameEl) {
+        taskStatusNameEl.innerText = data.task_name.replace(/_/g, ' ').toUpperCase();
+      }
+
+      if (data.instruction && taskInstructionBadgeEl) {
+        taskInstructionBadgeEl.innerText = `Instruction: "${data.instruction}"`;
+      }
+
+      // 4. Update Task Status & Banner (SUCCESS / FAILED / RUNNING)
+      const currentStatus = data.status || (data.telemetry && data.telemetry.status) || "RUNNING";
+      if (taskStatusValEl) {
+        taskStatusValEl.innerText = currentStatus;
+        if (currentStatus === "SUCCESS") {
+          taskStatusValEl.className = "text-green font-bold";
+        } else if (currentStatus === "FAILED") {
+          taskStatusValEl.className = "text-red font-bold";
+        } else {
+          taskStatusValEl.className = "text-blue";
+        }
+      }
+
+      if (taskResultBannerEl) {
+        if (currentStatus === "SUCCESS") {
+          taskResultBannerEl.className = "task-result-banner banner-success";
+          if (taskResultTextEl) taskResultTextEl.innerText = "TASK SUCCESSFUL! (Goal Reached)";
+        } else if (currentStatus === "FAILED") {
+          taskResultBannerEl.className = "task-result-banner banner-failed";
+          if (taskResultTextEl) taskResultTextEl.innerText = "TASK FAILED (Max Steps Reached)";
+        } else {
+          taskResultBannerEl.className = "task-result-banner hidden";
+        }
       }
 
       if (data.telemetry) {

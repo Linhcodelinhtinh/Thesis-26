@@ -21,12 +21,15 @@
       <div class="logo-area">
         <div class="logo-icon"><i class="fa-solid fa-robot"></i></div>
         <div>
-          <h1>VLA Embodied Memory & Digital Twin</h1>
-          <p class="subtitle">MuJoCo Off-Screen Render • Three.js 3D Franka Panda Twin • Spatial Tracker Overlay</p>
+          <h1>SimplerEnv VLA Multi-Scale Memory & Digital Twin</h1>
+          <p class="subtitle">SimplerEnv Benchmark • Google Robot & WidowX • Real-World VLA Zero-Shot Evaluation</p>
         </div>
       </div>
       
       <div class="header-status">
+        <div class="status-badge" id="task-status-badge">
+          <i class="fa-solid fa-flag"></i> <span id="task-status-name">Task</span>: <span id="task-status-val" class="text-blue">RUNNING</span>
+        </div>
         <div class="status-badge" id="vla-model-badge">
           <i class="fa-solid fa-brain"></i> Model: <span id="vla-model-name">Octo-Small</span>
         </div>
@@ -37,28 +40,30 @@
           <i class="fa-solid fa-eye"></i> Occlusion: <span id="occlusion-val">Visible</span>
         </div>
         <div class="status-badge live-dot">
-          <span class="pulse-dot"></span> LIVE STREAM
+          <span class="pulse-dot"></span> LIVE SIM
         </div>
       </div>
     </header>
 
     <!-- Main Dual Panel Section -->
     <main class="dashboard-grid">
-      <!-- Left Panel: Perception & MuJoCo Offscreen Rendering -->
+      <!-- Left Panel: Perception & SimplerEnv Camera View -->
       <section class="card panel-perception">
         <div class="card-header">
-          <h2><i class="fa-solid fa-video"></i> MuJoCo Perception View (Off-screen Render)</h2>
+          <h2><i class="fa-solid fa-video"></i> SimplerEnv Evaluation Camera View</h2>
           <div class="cam-controls">
-            <label for="cam-select"><i class="fa-solid fa-camera"></i> Camera:</label>
-            <select id="cam-select">
-              <option value="overhead_cam">Overhead Camera (Top)</option>
-              <option value="wrist_cam">Wrist Camera (Hand)</option>
-            </select>
+            <span class="badge-tag" id="task-instruction-badge">Instruction: pick coke can</span>
           </div>
         </div>
 
         <div class="video-container">
-          <img id="stream-frame" src="" alt="MuJoCo Offscreen Stream" />
+          <img id="stream-frame" src="" alt="SimplerEnv Camera Stream" />
+          
+          <!-- TASK RESULT OVERLAY BANNER (SUCCESS / FAILED) -->
+          <div class="task-result-banner hidden" id="task-result-banner">
+            <i class="fa-solid fa-trophy"></i> <span id="task-result-text">TASK SUCCESSFUL!</span>
+          </div>
+
           <div class="video-overlay-banner" id="prompt-overlay">
             <span class="badge-tag">DYNAMIC PROMPT</span>
             <span id="overlay-prompt-text">Initializing VLA state...</span>

@@ -1,59 +1,69 @@
 #!/usr/bin/env python3
 """
-Main Entrypoint — Robotic Control & Memory Architecture
-------------------------------------------------------
-Orchestrates Chronicler, Spatial Tracker, Painter, Sync Layer, and VLA Model inference.
-Runs an interactive OpenCV simulation demonstrating full multi-modal closed loop.
+Main Entrypoint — VLA Embodied Memory & SimplerEnv Evaluation Platform
+-----------------------------------------------------------------------
+Orchestrates:
+1. SimplerEnv Simulation: Zero-shot real-world robot evaluation (Google Robot & WidowX)
+2. The Chronicler: Memory-as-a-Prompt state management
+3. The Spatial Tracker & Painter: Persistent tracking under occlusion
+4. VLA Policy Inference: Action Chunking execution (Octo / OpenVLA / Mock)
+5. Trajectory Recording: Observation -> Action -> Reward/Success with calibration & timestamps
+6. UI Notifications: Prominent real-time TASK SUCCESS / TASK FAILED overlays
 """
 import sys
 import os
 import time
+import argparse
 import threading
 import yaml
 import numpy as np
 import cv2
 
-# Import custom components
+# Import project modules
+from simpler_env_adapter import SimplerEnvAdapter
 from chronicler import Chronicler
 from spatial_tracker import SpatialTracker
 from painter import Painter
 from sync_layer import SyncLayer
+from trajectory_recorder import TrajectoryRecorder
+from teleop_controller import TeleopController, ScriptedOracleExpert
 from vla_wrapper import MockVLAWrapper, OctoWrapper, OpenVLAWrapper, Pi0Wrapper, RTXWrapper
 
 
-class RoboticVLADemo:
-    def __init__(self, config_path="configs/config.yaml"):
-        # Load configuration
+class SimplerVLAPlatform:
+    def __init__(
+        self,
+        config_path="configs/config.yaml",
+        task_name=None,
+        control_mode="policy",
+        action_chunk_size=4,
+        record=True,
+        seed=42,
+        max_steps=60
+    ):
         self.config = self.load_config(config_path)
-        
-        # Initialize modules
+        sim_cfg = self.config.get("simpler_env", {})
+
+        self.task_name = task_name or sim_cfg.get("task_name", "google_robot_pick_coke_can")
+        self.control_mode = control_mode  # "policy", "expert", "teleop"
+        self.action_chunk_size = int(action_chunk_size or self.config.get("action_chunk_size", 4))
+        self.record_enabled = record
+        self.seed = int(seed)
+        self.max_steps = int(max_steps or sim_cfg.get("max_steps", 60))
+
+        # 1. Initialize SimplerEnv Adapter
+        print(f"[Platform] Initializing SimplerEnv for task '{self.task_name}'...")
+        self.env = SimplerEnvAdapter(
+            task_name=self.task_name,
+            max_steps=self.max_steps,
+            seed=self.seed
+        )
+
+        # 2. Initialize Middleware components
         self.sync_layer = SyncLayer()
         self.painter = Painter()
-        
-        # Select VLA wrapper
-        vla_choice = self.config.get("vla_model", "mock")
-        model_paths = self.config.get("model_paths", {})
-        
-        if vla_choice == "octo":
-            checkpoint = self.config.get("octo_checkpoint", "octo-small")
-            path = model_paths.get("octo_small" if "small" in checkpoint else "octo_base", "hf://rail-berkeley/octo-small-1.5")
-            self.vla = OctoWrapper(model_id=path, checkpoint_type=checkpoint)
-        elif vla_choice == "openvla":
-            self.vla = OpenVLAWrapper(model_paths.get("openvla", "openvla/openvla-7b"))
-        elif vla_choice == "pi0":
-            self.vla = Pi0Wrapper(model_paths.get("pi0", "physical-intelligence/pi0"))
-        elif vla_choice == "rtx":
-            self.vla = RTXWrapper(model_paths.get("rtx", "google/rt-x"))
-        else:
-            self.vla = MockVLAWrapper()
-            
-        # Select Tracker
-        self.tracker = SpatialTracker(
-            tracker_type=self.config.get("tracker_type", "opencv_fallback"),
-            config=self.config
-        )
-        
-        # Initialize Chronicler with config
+        self.tracker = SpatialTracker(tracker_type=self.config.get("tracker_type", "opencv_fallback"))
+
         chronicler_cfg = self.config.get("chronicler", {})
         self.chronicler = Chronicler(
             use_real_vlm=chronicler_cfg.get("use_real_vlm", False),
@@ -62,273 +72,292 @@ class RoboticVLADemo:
             max_history_length=chronicler_cfg.get("max_history_length", 5)
         )
         self.chronicler_tick_rate = float(chronicler_cfg.get("tick_rate_hz", 7.0))
-        
-        # Simulation States (Physical simulation)
-        self.width, self.height = 640, 480
-        self.gripper_pos = [100.0, 240.0]
-        self.gripper_width = 1.0  # 1.0 = Fully Open, 0.0 = Closed
-        self.target_pos = [480.0, 240.0]
-        self.human_command = "Grasp the orange object"
-        
-        # Obstacle defining an occlusion zone
-        self.obstacle_box = [260, 120, 380, 360]  # [x_min, y_min, x_max, y_max]
-        
-        # Control flags
+
+        # 3. Initialize VLA Policy
+        vla_choice = self.config.get("vla_model", "octo")
+        model_paths = self.config.get("model_paths", {})
+        if vla_choice == "octo":
+            self.vla = OctoWrapper(
+                model_id=model_paths.get("octo_small", "hf://rail-berkeley/octo-small-1.5"),
+                action_chunk_size=self.action_chunk_size
+            )
+        elif vla_choice == "openvla":
+            self.vla = OpenVLAWrapper(
+                model_id=model_paths.get("openvla", "openvla/openvla-7b"),
+                action_chunk_size=self.action_chunk_size
+            )
+        else:
+            self.vla = MockVLAWrapper(action_chunk_size=self.action_chunk_size)
+
+        # 4. Controllers & Recorders
+        self.teleop = TeleopController()
+        self.expert = ScriptedOracleExpert(self.task_name)
+        save_dir = sim_cfg.get("trajectory_save_dir", "data/trajectories")
+        self.recorder = TrajectoryRecorder(save_dir=save_dir, task_name=self.task_name)
+
+        # State flags
         self.running = False
         self.threads = []
+        self.current_obs = None
+        self.last_action = [0.0] * 7
+        self.last_info = {}
+        self.task_status = "RUNNING"  # "RUNNING", "SUCCESS", "FAILED"
+        self.status_banner_timer = 0
 
     def load_config(self, path):
         if os.path.exists(path):
             with open(path, "r", encoding="utf-8") as f:
                 return yaml.safe_load(f)
-        return {
-            "vla_model": "mock",
-            "tracker_type": "opencv_fallback",
-            "chronicler": {"enabled": True, "use_real_vlm": False, "tick_rate_hz": 7.0},
-            "simulation": {"enabled": True, "fps": 15, "arm_speed": 0.1, "occlusion_radius": 40}
-        }
+        return {"vla_model": "octo", "action_chunk_size": 4}
 
-    def generate_raw_frame(self):
-        """
-        Simulates the raw camera feed. Draws the target object and the obstacle.
-        """
-        frame = np.ones((self.height, self.width, 3), dtype=np.uint8) * 45  # Dark gray background
-        
-        # Draw Workspace Grid Lines
-        for x in range(0, self.width, 40):
-            cv2.line(frame, (x, 0), (x, self.height), (60, 60, 60), 1)
-        for y in range(0, self.height, 40):
-            cv2.line(frame, (0, y), (self.width, y), (60, 60, 60), 1)
-            
-        # 1. Draw Target Object (Orange Circle)
-        tx, ty = int(self.target_pos[0]), int(self.target_pos[1])
-        cv2.circle(frame, (tx, ty), 15, (0, 140, 255), -1)
-        cv2.circle(frame, (tx, ty), 15, (0, 200, 255), 2)
-        
-        # 2. Draw Occlusion Obstacle (Darker Grey semi-opaque panel)
-        ox1, oy1, ox2, oy2 = self.obstacle_box
-        sub_img = frame[oy1:oy2, ox1:ox2]
-        white_rect = np.ones(sub_img.shape, dtype=np.uint8) * 80
-        res = cv2.addWeighted(sub_img, 0.4, white_rect, 0.6, 1.0)
-        frame[oy1:oy2, ox1:ox2] = res
-        cv2.rectangle(frame, (ox1, oy1), (ox2, oy2), (100, 100, 100), 2)
-        cv2.putText(
-            frame, "OCCLUSION WALL", (ox1 + 10, oy1 + 30), 
-            cv2.FONT_HERSHEY_SIMPLEX, 0.4, (150, 150, 150), 1, cv2.LINE_AA
-        )
-        
-        # 3. Draw Robot Arm Gripper
-        gx, gy = int(self.gripper_pos[0]), int(self.gripper_pos[1])
-        # Draw Wrist Connection
-        cv2.line(frame, (0, gy), (gx - 20, gy), (180, 180, 180), 6)
-        cv2.circle(frame, (gx - 20, gy), 10, (100, 100, 100), -1)
-        # Draw Fingers (Open/Close spacing based on self.gripper_width)
-        offset = int(self.gripper_width * 15) + 5
-        cv2.line(frame, (gx - 20, gy - offset), (gx + 5, gy - offset), (220, 220, 220), 4)
-        cv2.line(frame, (gx - 20, gy + offset), (gx + 5, gy + offset), (220, 220, 220), 4)
-        cv2.line(frame, (gx + 5, gy - offset), (gx + 5, gy - 2), (200, 200, 200), 4)
-        cv2.line(frame, (gx + 5, gy + offset), (gx + 5, gy + 2), (200, 200, 200), 4)
-        
-        # Draw tool center point
-        cv2.circle(frame, (gx, gy), 3, (0, 0, 255), -1)
-        
-        return frame
+    def reset_episode(self):
+        """Resets the task, memory modules, and trajectory recorder."""
+        self.current_obs, reset_info = self.env.reset(seed=self.seed)
+        self.chronicler.reset()
+        self.vla.clear_chunk_buffer()
+        self.expert.reset()
+        self.task_status = "RUNNING"
+        self.status_banner_timer = 0
+
+        # Initialize tracking points on target
+        raw_rgb = self.current_obs["image"]
+        target_pos_3d = self.current_obs["proprioception"]["target_pos"]
+        # Approximate 2D target projection
+        h, w, _ = raw_rgb.shape
+        approx_2d = [w * 0.5, h * 0.6]
+        self.tracker.initialize_tracking_points(raw_rgb, approx_2d)
+
+        if self.record_enabled:
+            self.recorder.start_trajectory(
+                task_name=self.task_name,
+                seed=self.seed,
+                camera_calibration=self.current_obs.get("camera_calibration"),
+                robot_type=self.env.robot_type,
+                source=f"{self.control_mode}_{type(self.vla).__name__}",
+                config_dict=self.config,
+                action_chunk_size=self.action_chunk_size
+            )
+        print(f"[Platform] Episode reset for task '{self.task_name}'. Ready.")
 
     def tracker_loop(self):
-        """
-        Tracker thread runs at 15-20 Hz.
-        Tracks coordinates and paints visual indicators.
-        """
-        print("[Tracker Thread] Started.")
+        """High-speed tracking thread (15-20 Hz)."""
         rate = 1.0 / 15.0
-        
-        # Initialize points around target
-        raw_frame = self.generate_raw_frame()
-        self.tracker.initialize_tracking_points(raw_frame, self.target_pos)
-        
         while self.running:
-            start_time = time.time()
-            
-            # Fetch latest physical state
-            raw_frame = self.generate_raw_frame()
-            
-            # Estimate occlusion geometrically or via vision
-            pts, flags = self.tracker.track(raw_frame, gripper_pos=self.gripper_pos)
-            
-            # Check if centroid is behind the obstacle box
-            tx, ty = self.target_pos
-            ox1, oy1, ox2, oy2 = self.obstacle_box
-            is_behind_wall = (ox1 <= tx <= ox2) and (oy1 <= ty <= oy2)
-            
-            if is_behind_wall:
-                flags = [True] * len(flags)
-                
-            # Render visual overlays with latest dynamic prompt
-            _, latest_prompt = self.sync_layer.get_latest_state()
-            prompt_str = latest_prompt or ""
-            
-            painted_image = self.painter.draw_overlay(raw_frame, pts, flags, prompt_str)
-            
-            # Update synchronization layer
-            self.sync_layer.update_image(painted_image)
-            
-            elapsed = time.time() - start_time
+            start_t = time.time()
+            if self.current_obs is not None:
+                raw_rgb = self.current_obs["image"]
+                pts, flags = self.tracker.track(raw_rgb)
+                _, latest_prompt = self.sync_layer.get_latest_state()
+                painted = self.painter.draw_overlay(raw_rgb, pts, flags, latest_prompt or "")
+                self.sync_layer.update_image(painted)
+            elapsed = time.time() - start_t
             time.sleep(max(0.001, rate - elapsed))
 
     def chronicler_loop(self):
-        """
-        Chronicler thread runs at 5-10 Hz.
-        Updates logical states and temporal memory.
-        """
-        print("[Chronicler Thread] Started.")
+        """Temporal logic & state chronicler thread (5-10 Hz)."""
         rate = 1.0 / max(1.0, self.chronicler_tick_rate)
-        
         while self.running:
-            start_time = time.time()
-            
-            # Fetch tracking details for state analysis
-            tx, ty = self.target_pos
-            ox1, oy1, ox2, oy2 = self.obstacle_box
-            is_behind_wall = (ox1 <= tx <= ox2) and (oy1 <= ty <= oy2)
-            
-            tracking_info = {
-                "target_pos": self.target_pos,
-                "is_occluded": is_behind_wall or (np.linalg.norm(np.array(self.target_pos) - np.array(self.gripper_pos)) < 40)
-            }
-            
-            proprioception = {
-                "gripper_pos": self.gripper_pos,
-                "gripper_width": self.gripper_width
-            }
-            
-            # Run state analysis
-            raw_frame = self.generate_raw_frame()
-            dynamic_prompt = self.chronicler.update_state(
-                raw_frame, self.human_command, proprioception, tracking_info
-            )
-            
-            # Push prompt to Sync Layer
-            self.sync_layer.update_prompt(dynamic_prompt)
-            
-            elapsed = time.time() - start_time
+            start_t = time.time()
+            if self.current_obs is not None:
+                raw_rgb = self.current_obs["image"]
+                proprio = self.current_obs["proprioception"]
+                tracking_info = {
+                    "target_pos": proprio.get("target_pos", []),
+                    "is_occluded": self.last_info.get("lift_height", 0.0) > 0.02
+                }
+                dynamic_prompt = self.chronicler.update_state(
+                    raw_rgb, self.env.instruction, proprio, tracking_info
+                )
+                self.sync_layer.update_prompt(dynamic_prompt)
+            elapsed = time.time() - start_t
             time.sleep(max(0.001, rate - elapsed))
 
-    def main_control_loop(self):
+    def draw_ui_dashboard(self, base_image, step_idx):
         """
-        Simulated VLA control loop running at 10 Hz.
-        Retrieves inputs from Sync Layer, queries VLA, updates physics, and shows dashboard.
+        Draws the comprehensive SimplerEnv evaluation dashboard, including
+        highly visible TASK SUCCESS / TASK FAILED alert banners.
         """
-        print("[VLA Control Loop] Started.")
+        dash = base_image.copy()
+        h, w, _ = dash.shape
+
+        # 1. Top Header Banner: Task & Model Info
+        header_bg = np.zeros((45, w, 3), dtype=np.uint8)
+        dash[:45, :] = cv2.addWeighted(dash[:45, :], 0.3, header_bg, 0.7, 0)
+        cv2.putText(dash, f"SIMPLER-ENV: {self.task_name.upper()}", (10, 18),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 255, 255), 1, cv2.LINE_AA)
+        cv2.putText(dash, f"Instruction: \"{self.env.instruction}\"", (10, 36),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.38, (220, 220, 220), 1, cv2.LINE_AA)
+
+        # Mode Badge
+        mode_text = f"MODE: {self.control_mode.upper()} (Chunk: {self.action_chunk_size})"
+        cv2.putText(dash, mode_text, (w - 240, 18),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.38, (180, 255, 180), 1, cv2.LINE_AA)
+        cv2.putText(dash, f"Step: {step_idx}/{self.max_steps}", (w - 120, 36),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.40, (255, 255, 255), 1, cv2.LINE_AA)
+
+        # 2. Bottom Telemetry Bar
+        bar_y = h - 35
+        tele_bg = np.zeros((35, w, 3), dtype=np.uint8)
+        dash[bar_y:, :] = cv2.addWeighted(dash[bar_y:, :], 0.3, tele_bg, 0.7, 0)
+        proprio = self.current_obs.get("proprioception", {})
+        tcp = proprio.get("tcp_pos", [0, 0, 0])
+        grp = proprio.get("gripper_width", 1.0)
+        tele_str = f"TCP: [{tcp[0]:.2f}, {tcp[1]:.2f}, {tcp[2]:.2f}] | Grp: {'OPEN' if grp > 0.5 else 'CLOSED'} ({grp:.2f})"
+        cv2.putText(dash, tele_str, (10, h - 12),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.38, (200, 200, 200), 1, cv2.LINE_AA)
+
+        # 3. PROMINENT SUCCESS / FAILED NOTIFICATION BANNER
+        if self.task_status == "SUCCESS":
+            # Bright Emerald Green Glowing Banner
+            overlay = dash.copy()
+            banner_y1 = int(h * 0.38)
+            banner_y2 = int(h * 0.62)
+            cv2.rectangle(overlay, (20, banner_y1), (w - 20, banner_y2), (0, 180, 40), -1)
+            cv2.rectangle(overlay, (20, banner_y1), (w - 20, banner_y2), (255, 255, 255), 2)
+            cv2.addWeighted(overlay, 0.85, dash, 0.15, 0, dash)
+
+            cv2.putText(dash, "TASK SUCCESSFUL!", (int(w * 0.15), int(h * 0.49)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 2, cv2.LINE_AA)
+            cv2.putText(dash, f"Goal Condition Satisfied at Step {step_idx}!", (int(w * 0.12), int(h * 0.57)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.42, (240, 255, 240), 1, cv2.LINE_AA)
+
+        elif self.task_status == "FAILED":
+            # Bold Crimson Red Banner
+            overlay = dash.copy()
+            banner_y1 = int(h * 0.38)
+            banner_y2 = int(h * 0.62)
+            cv2.rectangle(overlay, (20, banner_y1), (w - 20, banner_y2), (0, 0, 200), -1)
+            cv2.rectangle(overlay, (20, banner_y1), (w - 20, banner_y2), (255, 255, 255), 2)
+            cv2.addWeighted(overlay, 0.85, dash, 0.15, 0, dash)
+
+            cv2.putText(dash, "TASK FAILED", (int(w * 0.25), int(h * 0.49)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 2, cv2.LINE_AA)
+            cv2.putText(dash, "Max steps reached without meeting success criteria", (int(w * 0.05), int(h * 0.57)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.38, (220, 220, 255), 1, cv2.LINE_AA)
+
+        return dash
+
+    def run_main_loop(self):
+        """Primary SimplerEnv evaluation loop running at 10 Hz."""
+        print(f"[Platform] Starting main execution loop (Mode: {self.control_mode})...")
+        self.reset_episode()
+        step_idx = 0
         rate = 1.0 / 10.0
-        
-        cv2.namedWindow("Robotic VLA Multi-Modal Memory Demo", cv2.WINDOW_AUTOSIZE)
-        
-        def on_mouse(event, x, y, flags, param):
-            if event == cv2.EVENT_LBUTTONDOWN:
-                self.target_pos = [float(x), float(y)]
-                raw_f = self.generate_raw_frame()
-                self.tracker.initialize_tracking_points(raw_f, self.target_pos)
-                self.chronicler.reset()
-                print(f"[Demo] Repositioned target to ({x}, {y})")
-                
-        cv2.setMouseCallback("Robotic VLA Multi-Modal Memory Demo", on_mouse)
+
+        cv2.namedWindow("SimplerEnv VLA Platform", cv2.WINDOW_AUTOSIZE)
 
         while self.running:
-            start_time = time.time()
-            
-            # 1. Fetch latest synced states
-            painted_image, dynamic_prompt = self.sync_layer.get_latest_state()
-            
-            if painted_image is not None and dynamic_prompt is not None:
-                # 2. Query VLA Model with both Painted Image and Dynamic Prompt
-                proprioception = {
-                    "gripper_pos": self.gripper_pos,
-                    "gripper_width": self.gripper_width
-                }
-                action = self.vla.predict_action(painted_image, dynamic_prompt, proprioception)
-                
-                # 3. Apply Action to Physics simulation
-                dx, dy, _, _, _, _, gripper_cmd = action
-                self.gripper_pos[0] += dx
-                self.gripper_pos[1] += dy
-                
-                # Smoothly close/open gripper
-                target_w = gripper_cmd
-                self.gripper_width += (target_w - self.gripper_width) * 0.3
-                
-                # If target is grasped, move it with the gripper
-                if self.gripper_width < 0.15:
-                    dist_to_obj = np.linalg.norm(np.array(self.target_pos) - np.array(self.gripper_pos))
-                    if dist_to_obj < 22.0:
-                        self.target_pos[0] = self.gripper_pos[0]
-                        self.target_pos[1] = self.gripper_pos[1]
-                
-                # Render the dashboard
-                dash_image = painted_image.copy()
-                h, w, _ = dash_image.shape
-                
-                # UI Info Box at bottom right
-                cv2.rectangle(dash_image, (w - 240, h - 90), (w - 10, h - 10), (0, 0, 0), -1)
-                cv2.rectangle(dash_image, (w - 240, h - 90), (w - 10, h - 10), (0, 255, 0), 1)
-                cv2.putText(dash_image, "DEMO DASHBOARD", (w - 230, h - 75), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 255, 0), 1, cv2.LINE_AA)
-                cv2.putText(dash_image, f"VLA Model: {type(self.vla).__name__}", (w - 230, h - 55), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (255, 255, 255), 1, cv2.LINE_AA)
-                cv2.putText(dash_image, "[Click to move target]", (w - 230, h - 35), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (180, 180, 180), 1, cv2.LINE_AA)
-                cv2.putText(dash_image, "[Press 'R' to reset]", (w - 230, h - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (180, 180, 180), 1, cv2.LINE_AA)
-                
-                cv2.imshow("Robotic VLA Multi-Modal Memory Demo", dash_image)
-            
-            # Poll keyboard events
-            key = cv2.waitKey(1) & 0xFF
-            if key == ord('q') or key == 27: # Esc
+            loop_start = time.time()
+
+            # 1. Fetch visual & dynamic prompt states
+            painted_img, dynamic_prompt = self.sync_layer.get_latest_state()
+            active_img = painted_img if painted_img is not None else self.current_obs["image"]
+            proprio = self.current_obs["proprioception"]
+
+            # 2. Obtain action based on control mode
+            if self.task_status == "RUNNING":
+                step_idx += 1
+                if self.control_mode == "expert":
+                    action = self.expert.get_action(self.current_obs)
+                elif self.control_mode == "teleop":
+                    # Keypress handled in cv2.waitKey
+                    action = self.last_action
+                else:
+                    # VLA Policy with Action Chunking
+                    action = self.vla.step_policy(active_img, dynamic_prompt or "", proprio)
+
+                self.last_action = action
+
+                # 3. Step SimplerEnv simulation forward
+                next_obs, reward, term, trunc, info = self.env.step(action)
+                self.last_info = info
+
+                # 4. Trajectory recording
+                if self.record_enabled:
+                    self.recorder.record_step(
+                        step_idx, self.current_obs, action, reward, term, trunc, info,
+                        dynamic_prompt=dynamic_prompt
+                    )
+
+                self.current_obs = next_obs
+
+                # 5. Check Success Condition
+                if info.get("success", False):
+                    self.task_status = "SUCCESS"
+                    print(f"\n🏆 [SimplerEnv] TASK SUCCESS! Met goal condition at step {step_idx}!")
+                    if self.record_enabled:
+                        self.recorder.save()
+                elif trunc:
+                    self.task_status = "FAILED"
+                    print(f"\n❌ [SimplerEnv] TASK FAILED: Reached max steps ({self.max_steps}).")
+                    if self.record_enabled:
+                        self.recorder.save()
+
+            # 6. Render Dashboard
+            dash_frame = self.draw_ui_dashboard(active_img, step_idx)
+            cv2.imshow("SimplerEnv VLA Platform", dash_frame)
+
+            # 7. Keyboard events
+            key = cv2.waitKey(20) & 0xFF
+            if key in [ord('q'), ord('Q'), 27]:
                 self.running = False
                 break
-            elif key == ord('r'):
-                self.gripper_pos = [100.0, 240.0]
-                self.gripper_width = 1.0
-                self.target_pos = [480.0, 240.0]
-                self.chronicler.reset()
-                raw_f = self.generate_raw_frame()
-                self.tracker.initialize_tracking_points(raw_f, self.target_pos)
-                print("[Demo] Reset workspace.")
-                
-            elapsed = time.time() - start_time
+            elif key in [ord('r'), ord('R')]:
+                step_idx = 0
+                self.reset_episode()
+            elif self.control_mode == "teleop" and key != 255:
+                self.last_action = self.teleop.process_key(key)
+
+            elapsed = time.time() - loop_start
             time.sleep(max(0.001, rate - elapsed))
-            
+
         cv2.destroyAllWindows()
+        self.env.close()
 
     def start(self):
         self.running = True
-        
-        # Thread 1: Tracker
-        t1 = threading.Thread(target=self.tracker_loop)
-        t1.daemon = True
+
+        # Thread 1: Persistent Point Tracker
+        t1 = threading.Thread(target=self.tracker_loop, daemon=True)
         t1.start()
         self.threads.append(t1)
-        
-        # Thread 2: Chronicler
-        t2 = threading.Thread(target=self.chronicler_loop)
-        t2.daemon = True
+
+        # Thread 2: Chronicler State VLM
+        t2 = threading.Thread(target=self.chronicler_loop, daemon=True)
         t2.start()
         self.threads.append(t2)
-        
-        # Run main control loop on primary thread for UI / GUI window
-        self.main_control_loop()
-        
-        # Wait for threads
+
+        # Run main loop on primary thread
+        self.run_main_loop()
+
         for t in self.threads:
             t.join()
 
 
 if __name__ == "__main__":
-    if "--web" in sys.argv or "-w" in sys.argv:
+    parser = argparse.ArgumentParser(description="SimplerEnv VLA Evaluation Platform")
+    parser.add_argument("--task", type=str, default=None, help="SimplerEnv task name")
+    parser.add_argument("--mode", type=str, choices=["policy", "expert", "teleop"], default="policy",
+                        help="Control source: policy (VLA), expert (oracle script), teleop (keyboard)")
+    parser.add_argument("--chunk", type=int, default=4, help="Action chunking horizon")
+    parser.add_argument("--seed", type=int, default=42, help="Random seed")
+    parser.add_argument("--max-steps", type=int, default=60, help="Max steps per episode")
+    parser.add_argument("--no-record", action="store_true", help="Disable trajectory recording")
+    parser.add_argument("--web", action="store_true", help="Start Web Visualization Server")
+    parser.add_argument("--port", type=int, default=8080, help="Web server port")
+    args = parser.parse_args()
+
+    if args.web:
         from web_server import RoboticWebServer
-        port = 8080
-        for i, arg in enumerate(sys.argv):
-            if arg == "--port" and i + 1 < len(sys.argv):
-                port = int(sys.argv[i + 1])
-        server = RoboticWebServer(host="0.0.0.0", port=port)
+        server = RoboticWebServer(host="0.0.0.0", port=args.port)
         server.start()
     else:
-        demo = RoboticVLADemo()
-        demo.start()
-
+        platform = SimplerVLAPlatform(
+            task_name=args.task,
+            control_mode=args.mode,
+            action_chunk_size=args.chunk,
+            record=not args.no_record,
+            seed=args.seed,
+            max_steps=args.max_steps
+        )
+        platform.start()
