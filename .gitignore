@@ -35,4 +35,9 @@ ENV/
 *.log
 scratch/
 .DS_Store
-Thesis-26/
+
+# Data and replay
+data/trajectories/
+
+# Format and reference
+format_reference/

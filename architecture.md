@@ -53,6 +53,8 @@ graph TD
 - **Đầu ra (Output)**: Một chuỗi `State_String` tuân thủ template cố định:
   - `[Task]: <Human Command> | [Status]: <Past Action>. <Object States>. <Gripper State>. <Environment States>.`
   - *Ví dụ*: `[Task]: Make fried egg | [Status]: Egg was grasped. Egg is in hand. Gripper is closed. Pan is heated.`
+  thử thêm nhiều template 
+  có thể dùng nguyên một projecter/adapter/anything.. được finetune chuyên biệt để sinh ra **memory token** tương tự như image token của VLM hay các end of sentence token,...
 
 ### 2. The Spatial Tracker (Cơ chế 2 - Persistent Visual Tracking)
 (`src/spatial_tracker.py`)
