@@ -1,14 +1,19 @@
 #!/usr/bin/env python3
 """
-Main Entrypoint — VLA Embodied Memory & SimplerEnv Evaluation Platform
------------------------------------------------------------------------
-Orchestrates:
-1. SimplerEnv Simulation: Zero-shot real-world robot evaluation (Google Robot & WidowX)
-2. The Chronicler: Memory-as-a-Prompt state management
-3. The Spatial Tracker & Painter: Persistent tracking under occlusion
-4. VLA Policy Inference: Action Chunking execution (Octo / OpenVLA / Mock)
-5. Trajectory Recording: Observation -> Action -> Reward/Success with calibration & timestamps
-6. UI Notifications: Prominent real-time TASK SUCCESS / TASK FAILED overlays
+Unified Entrypoint — VLA Embodied Memory & Multi-Backend Simulation Platform
+----------------------------------------------------------------------------
+Runs either DeepMind MuJoCo Native 3D Simulation or SimplerEnv Evaluation
+using a single unified command, controlled simply by changing the --env flag:
+
+Examples:
+  # 1. Run Native MuJoCo 3D Interactive Simulation (Default):
+  python src/main.py --env mujoco --model octo --task "put can in basket"
+
+  # 2. Run SimplerEnv Benchmark Evaluation:
+  python src/main.py --env simplerenv --model octo --task "google_robot_pick_coke_can"
+
+  # 3. Launch Web Visualization & Digital Twin Server:
+  python src/main.py --web --port 8080
 """
 import sys
 import os
@@ -19,7 +24,10 @@ import yaml
 import numpy as np
 import cv2
 
-# Import project modules
+# Add src folder to sys.path
+sys.path.append(os.path.abspath(os.path.dirname(__file__)))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 from simpler_env_adapter import SimplerEnvAdapter
 from chronicler import Chronicler
 from spatial_tracker import SpatialTracker
@@ -27,7 +35,16 @@ from painter import Painter
 from sync_layer import SyncLayer
 from trajectory_recorder import TrajectoryRecorder
 from teleop_controller import TeleopController, ScriptedOracleExpert
-from vla_wrapper import MockVLAWrapper, OctoWrapper, OpenVLAWrapper, Pi0Wrapper, RTXWrapper
+from vla_wrapper import (
+    create_vla_model,
+    check_model_readiness,
+    get_all_models_status,
+    MockVLAWrapper,
+    OctoWrapper,
+    OpenVLAWrapper,
+    Pi0Wrapper,
+    RTXWrapper
+)
 
 
 class SimplerVLAPlatform:
@@ -37,9 +54,12 @@ class SimplerVLAPlatform:
         task_name=None,
         control_mode="policy",
         action_chunk_size=4,
+        vla_model="octo",
+        api_url="",
         record=True,
         seed=42,
-        max_steps=60
+        max_steps=60,
+        headless=False
     ):
         self.config = self.load_config(config_path)
         sim_cfg = self.config.get("simpler_env", {})
@@ -50,6 +70,8 @@ class SimplerVLAPlatform:
         self.record_enabled = record
         self.seed = int(seed)
         self.max_steps = int(max_steps or sim_cfg.get("max_steps", 60))
+        self.api_url = (api_url or os.environ.get("VLA_API_URL", "")).strip()
+        self.headless = headless
 
         # 1. Initialize SimplerEnv Adapter
         print(f"[Platform] Initializing SimplerEnv for task '{self.task_name}'...")
@@ -73,21 +95,22 @@ class SimplerVLAPlatform:
         )
         self.chronicler_tick_rate = float(chronicler_cfg.get("tick_rate_hz", 7.0))
 
-        # 3. Initialize VLA Policy
-        vla_choice = self.config.get("vla_model", "octo")
-        model_paths = self.config.get("model_paths", {})
-        if vla_choice == "octo":
-            self.vla = OctoWrapper(
-                model_id=model_paths.get("octo_small", "hf://rail-berkeley/octo-small-1.5"),
-                action_chunk_size=self.action_chunk_size
-            )
-        elif vla_choice == "openvla":
-            self.vla = OpenVLAWrapper(
-                model_id=model_paths.get("openvla", "openvla/openvla-7b"),
-                action_chunk_size=self.action_chunk_size
-            )
-        else:
-            self.vla = MockVLAWrapper(action_chunk_size=self.action_chunk_size)
+        # 3. Check and Filter VLA Model Readiness
+        vla_choice = vla_model or self.config.get("vla_model", "octo")
+        readiness = check_model_readiness(vla_choice, self.api_url)
+        if not readiness["ready"]:
+            print(f"[Platform] [WARNING]: Model '{vla_choice}' is NOT READY ({readiness['badge']}).")
+            print(f"[Platform] Ghosting '{vla_choice}' and falling back to 'octo' (Downloaded/Local Ready).")
+            vla_choice = "octo"
+
+        mode = "raw" if self.control_mode == "raw" else "memory"
+        self.vla = create_vla_model(
+            vla_choice,
+            chunk_size=self.action_chunk_size,
+            mode=mode,
+            api_url=self.api_url
+        )
+        print(f"[Platform] Loaded VLA Policy: {readiness['name']} ({self.vla.connection_status})")
 
         # 4. Controllers & Recorders
         self.teleop = TeleopController()
@@ -114,15 +137,16 @@ class SimplerVLAPlatform:
         """Resets the task, memory modules, and trajectory recorder."""
         self.current_obs, reset_info = self.env.reset(seed=self.seed)
         self.chronicler.reset()
-        self.vla.clear_chunk_buffer()
+        if hasattr(self.vla, "reset"):
+            self.vla.reset()
+        else:
+            self.vla.clear_chunk_buffer()
         self.expert.reset()
         self.task_status = "RUNNING"
         self.status_banner_timer = 0
 
         # Initialize tracking points on target
         raw_rgb = self.current_obs["image"]
-        target_pos_3d = self.current_obs["proprioception"]["target_pos"]
-        # Approximate 2D target projection
         h, w, _ = raw_rgb.shape
         approx_2d = [w * 0.5, h * 0.6]
         self.tracker.initialize_tracking_points(raw_rgb, approx_2d)
@@ -208,7 +232,6 @@ class SimplerVLAPlatform:
 
         # 3. PROMINENT SUCCESS / FAILED NOTIFICATION BANNER
         if self.task_status == "SUCCESS":
-            # Bright Emerald Green Glowing Banner
             overlay = dash.copy()
             banner_y1 = int(h * 0.38)
             banner_y2 = int(h * 0.62)
@@ -222,7 +245,6 @@ class SimplerVLAPlatform:
                         cv2.FONT_HERSHEY_SIMPLEX, 0.42, (240, 255, 240), 1, cv2.LINE_AA)
 
         elif self.task_status == "FAILED":
-            # Bold Crimson Red Banner
             overlay = dash.copy()
             banner_y1 = int(h * 0.38)
             banner_y2 = int(h * 0.62)
@@ -260,10 +282,8 @@ class SimplerVLAPlatform:
                 if self.control_mode == "expert":
                     action = self.expert.get_action(self.current_obs)
                 elif self.control_mode == "teleop":
-                    # Keypress handled in cv2.waitKey
                     action = self.last_action
                 else:
-                    # VLA Policy with Action Chunking
                     action = self.vla.step_policy(active_img, dynamic_prompt or "", proprio)
 
                 self.last_action = action
@@ -284,34 +304,41 @@ class SimplerVLAPlatform:
                 # 5. Check Success Condition
                 if info.get("success", False):
                     self.task_status = "SUCCESS"
-                    print(f"\n🏆 [SimplerEnv] TASK SUCCESS! Met goal condition at step {step_idx}!")
+                    print(f"\n[SimplerEnv] [SUCCESS]: Met goal condition at step {step_idx}!")
                     if self.record_enabled:
                         self.recorder.save()
                 elif trunc:
                     self.task_status = "FAILED"
-                    print(f"\n❌ [SimplerEnv] TASK FAILED: Reached max steps ({self.max_steps}).")
+                    print(f"\n[SimplerEnv] [FAILED]: Reached max steps ({self.max_steps}).")
                     if self.record_enabled:
                         self.recorder.save()
 
-            # 6. Render Dashboard
-            dash_frame = self.draw_ui_dashboard(active_img, step_idx)
-            cv2.imshow("SimplerEnv VLA Platform", dash_frame)
+            # 6. Render Dashboard & Window (if not headless)
+            if not self.headless:
+                dash_frame = self.draw_ui_dashboard(active_img, step_idx)
+                cv2.imshow("SimplerEnv VLA Platform", dash_frame)
 
-            # 7. Keyboard events
-            key = cv2.waitKey(20) & 0xFF
-            if key in [ord('q'), ord('Q'), 27]:
-                self.running = False
-                break
-            elif key in [ord('r'), ord('R')]:
-                step_idx = 0
-                self.reset_episode()
-            elif self.control_mode == "teleop" and key != 255:
-                self.last_action = self.teleop.process_key(key)
+                # 7. Keyboard events
+                key = cv2.waitKey(20) & 0xFF
+                if key in [ord('q'), ord('Q'), 27]:
+                    self.running = False
+                    break
+                elif key in [ord('r'), ord('R')]:
+                    step_idx = 0
+                    self.reset_episode()
+                elif self.control_mode == "teleop" and key != 255:
+                    self.last_action = self.teleop.process_key(key)
+            else:
+                # Headless execution: break automatically when finished
+                if info.get("success", False) or trunc:
+                    self.running = False
+                    break
 
             elapsed = time.time() - loop_start
             time.sleep(max(0.001, rate - elapsed))
 
-        cv2.destroyAllWindows()
+        if not self.headless:
+            cv2.destroyAllWindows()
         self.env.close()
 
     def start(self):
@@ -331,33 +358,108 @@ class SimplerVLAPlatform:
         self.run_main_loop()
 
         for t in self.threads:
-            t.join()
+            t.join(timeout=1.0)
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Unified VLA Simulation Platform (MuJoCo Web Workspace & SimplerEnv)",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Launch Interactive MuJoCo Web Workspace (Default):
+  python run.py
+  python src/main.py --web --port 8080
+  python run.py --env mujoco --model octo --task "put can in basket"
+
+  # SimplerEnv Benchmark Evaluation:
+  python run.py --env simplerenv --model octo --task "google_robot_pick_coke_can"
+        """
+    )
+    # Environment choice flag
+    parser.add_argument(
+        "--env", "--sim", "--backend", dest="env",
+        type=str, default="mujoco",
+        choices=["mujoco", "web", "simplerenv", "simpler_env", "simpler"],
+        help="Simulation backend: 'mujoco' / 'web' (Interactive MuJoCo Web Dashboard) or 'simplerenv' (Benchmark evaluation). Default: mujoco"
+    )
+
+    # Model and Task configuration
+    parser.add_argument("--model", type=str, default="octo", choices=["octo", "openvla", "rt1", "pi0", "mock"], help="VLA model choice")
+    parser.add_argument("--task", type=str, default=None, help="Task natural language instruction or environment ID")
+    parser.add_argument("--mode", type=str, default="memory", choices=["memory", "raw", "policy", "expert", "teleop"], help="Execution mode")
+    parser.add_argument("--camera", type=str, default="overhead_cam", choices=["overhead_cam", "wrist_cam", "side_cam"], help="Active camera for MuJoCo")
+    parser.add_argument("--api-url", type=str, default="", help="Optional remote GPU VLA API URL")
+
+    # Runtime configuration
+    parser.add_argument("--headless", action="store_true", help="Run in headless evaluation mode without browser/GUI")
+    parser.add_argument("--chunk", type=int, default=4, help="Action chunking horizon")
+    parser.add_argument("--seed", type=int, default=42, help="Random seed")
+    parser.add_argument("--max-steps", type=int, default=120, help="Max steps per episode")
+    parser.add_argument("--no-record", action="store_true", help="Disable trajectory recording")
+
+    # Web Dashboard Server
+    parser.add_argument("--web", action="store_true", help="Start Web Visualization Server")
+    parser.add_argument("--port", type=int, default=8080, help="Web server port (default: 8080)")
+
+    args = parser.parse_args()
+
+    # 1. MuJoCo Simulation Backend (Unified Web Workspace, No desktop popup windows)
+    env_name = str(args.env).lower().strip()
+    if args.web or env_name in ["mujoco", "mujo", "web"]:
+        if not args.headless:
+            from web_server import RoboticWebServer
+            task_str = args.task or "put can in basket"
+            print(f"\n=======================================================")
+            print(f"[FRANKA PANDA MUJOCO VLA WORKSPACE]")
+            print(f"Interactive Web Dashboard is LIVE at: http://localhost:{args.port}")
+            print(f"Task: '{task_str}' | Model: {args.model.upper()}")
+            print(f"=======================================================\n")
+            server = RoboticWebServer(host="0.0.0.0", port=args.port)
+            server.task_name = task_str
+            server.task_instruction = task_str
+            if args.model:
+                server.set_model(args.model, api_url=args.api_url)
+            server.start()
+            return
+        else:
+            from mujoco_runner import InteractiveMujocoSim
+            task_str = args.task or "put can in basket"
+            ablation_mode = "raw" if args.mode == "raw" else "memory"
+            sim = InteractiveMujocoSim(
+                model_name=args.model,
+                task_instruction=task_str,
+                ablation_mode=ablation_mode,
+                camera_name=args.camera,
+                api_url=args.api_url,
+                headless=True
+            )
+            sim.run()
+            return
+
+    # 3. SimplerEnv Evaluation Backend
+    else:
+        task_str = args.task or "google_robot_pick_coke_can"
+        ctrl_mode = "policy" if args.mode in ["memory", "raw"] else args.mode
+
+        print(f"\n=======================================================")
+        print(f"[Launching Backend: SIMPLER-ENV EVALUATION PLATFORM]")
+        print(f"Task: '{task_str}' | Model: {args.model.upper()} | Mode: {ctrl_mode.upper()}")
+        print(f"=======================================================\n")
+
+        platform = SimplerVLAPlatform(
+            task_name=task_str,
+            control_mode=ctrl_mode,
+            action_chunk_size=args.chunk,
+            vla_model=args.model,
+            api_url=args.api_url,
+            record=not args.no_record,
+            seed=args.seed,
+            max_steps=args.max_steps,
+            headless=args.headless
+        )
+        platform.start()
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="SimplerEnv VLA Evaluation Platform")
-    parser.add_argument("--task", type=str, default=None, help="SimplerEnv task name")
-    parser.add_argument("--mode", type=str, choices=["policy", "expert", "teleop"], default="policy",
-                        help="Control source: policy (VLA), expert (oracle script), teleop (keyboard)")
-    parser.add_argument("--chunk", type=int, default=4, help="Action chunking horizon")
-    parser.add_argument("--seed", type=int, default=42, help="Random seed")
-    parser.add_argument("--max-steps", type=int, default=60, help="Max steps per episode")
-    parser.add_argument("--no-record", action="store_true", help="Disable trajectory recording")
-    parser.add_argument("--web", action="store_true", help="Start Web Visualization Server")
-    parser.add_argument("--port", type=int, default=8080, help="Web server port")
-    args = parser.parse_args()
-
-    if args.web:
-        from web_server import RoboticWebServer
-        server = RoboticWebServer(host="0.0.0.0", port=args.port)
-        server.start()
-    else:
-        platform = SimplerVLAPlatform(
-            task_name=args.task,
-            control_mode=args.mode,
-            action_chunk_size=args.chunk,
-            record=not args.no_record,
-            seed=args.seed,
-            max_steps=args.max_steps
-        )
-        platform.start()
+    main()

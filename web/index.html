@@ -3,161 +3,473 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VLA Embodied Memory & MuJoCo 3D Digital Twin</title>
+  <title>Franka Emika Panda • MuJoCo VLA Workspace</title>
   <link rel="stylesheet" href="style.css">
-  <!-- Google Fonts & Font Awesome Icons -->
+  
+  <!-- Typography: Outfit & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Font Awesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <!-- Import Three.js & OrbitControls from CDN -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 </head>
 <body>
-  <div class="app-container">
-    <!-- Header -->
+  <div class="app-layout">
+    <!-- Top Navigation & Control Header -->
     <header class="app-header">
-      <div class="logo-area">
-        <div class="logo-icon"><i class="fa-solid fa-robot"></i></div>
-        <div>
-          <h1>SimplerEnv VLA Multi-Scale Memory & Digital Twin</h1>
-          <p class="subtitle">SimplerEnv Benchmark • Google Robot & WidowX • Real-World VLA Zero-Shot Evaluation</p>
+      <div class="header-brand">
+        <div class="brand-badge">
+          <span class="brand-mono">FP</span>
+        </div>
+        <div class="brand-text">
+          <div class="brand-title">
+            <h1>Franka Emika Panda</h1>
+            <span class="badge-tag brand-pill">MuJoCo VLA</span>
+          </div>
         </div>
       </div>
-      
-      <div class="header-status">
-        <div class="status-badge" id="task-status-badge">
-          <i class="fa-solid fa-flag"></i> <span id="task-status-name">Task</span>: <span id="task-status-val" class="text-blue">RUNNING</span>
+
+      <div class="header-controls">
+        <!-- Environment Benchmark Mode Switcher -->
+        <div class="control-group env-mode-toggle-group" id="env-mode-switcher" title="Chọn chế độ môi trường">
+          <button id="btn-mode-libero" class="btn-toggle active" data-mode="libero" title="Chế độ Benchmark chuẩn LIBERO Mini-Suite (4 Tiers)">
+            LIBERO Mini-Suite
+          </button>
+          <button id="btn-mode-tabletop" class="btn-toggle" data-mode="tabletop" title="Chế độ Bàn thí nghiệm Franka Custom">
+            Custom Tabletop
+          </button>
         </div>
-        <div class="status-badge" id="vla-model-badge">
-          <i class="fa-solid fa-brain"></i> Model: <span id="vla-model-name">Octo-Small</span>
+
+        <!-- 3-Way Control Paradigm Switcher -->
+        <div class="control-group paradigm-toggle-group" id="paradigm-switcher" title="Chọn phương thức điều khiển cánh tay">
+          <button id="btn-paradigm-vla" class="btn-toggle active" data-paradigm="vla" title="Mô hình VLA End-to-End trực tiếp từ Camera + Text">
+            VLA
+          </button>
+          <button id="btn-paradigm-vlm-ik" class="btn-toggle" data-paradigm="vlm_ik" title="Mô hình VLM nhận thức không gian + Bộ giải Differential IK">
+            VLM + IK
+          </button>
+          <button id="btn-paradigm-fallback" class="btn-toggle" data-paradigm="offline_fallback" title="Điều khiển giải tích nội suy Offline Fallback">
+            Offline Fallback
+          </button>
         </div>
-        <div class="status-badge" id="fps-badge">
-          <i class="fa-solid fa-gauge-high"></i> FPS: <span id="fps-val">--</span>
+
+        <!-- VLA Policy Model Selector -->
+        <div class="control-group">
+          <label for="vla-model-select" class="control-label">Policy:</label>
+          <select id="vla-model-select" class="select-dropdown">
+            <option value="smolvla" selected>SmolVLA (HF 450M Flow-Matching)</option>
+            <option value="gemini_vla">Gemini Robotics VLM (API)</option>
+            <option value="octo">Octo-Small (Calibrated Sim)</option>
+            <option value="rt1">Google RT-1 (Calibrated Sim)</option>
+            <option value="openvla" class="opt-ghosted" disabled>OpenVLA-7B (API required)</option>
+            <option value="pi0" class="opt-ghosted" disabled>Pi0 (API required)</option>
+          </select>
+          <button id="btn-config-api" class="btn-icon" title="Cấu hình API">
+            API
+          </button>
         </div>
-        <div class="status-badge" id="occlusion-badge">
-          <i class="fa-solid fa-eye"></i> Occlusion: <span id="occlusion-val">Visible</span>
+
+        <!-- Mode Switcher: Embodied Memory vs Pure Reactive -->
+        <div class="control-group mode-toggle-group">
+          <button id="btn-ablation-memory" class="btn-toggle active" title="Embodied Memory Mode">
+            +Memory
+          </button>
+          <button id="btn-ablation-raw" class="btn-toggle" title="Pure Reactive Baseline">
+            Pure Reactive
+          </button>
         </div>
-        <div class="status-badge live-dot">
-          <span class="pulse-dot"></span> LIVE SIM
+
+        <!-- System Status Indicators -->
+        <div class="status-pills">
+          <div class="pill pill-fallback" id="pill-offline-fallback" style="display: none; background: rgba(245, 158, 11, 0.18); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.4); font-weight: 600;" title="Hệ thống đang chạy chế độ Offline Fallback">
+            OFFLINE FALLBACK
+          </div>
+          <div class="pill pill-status" id="task-status-pill">
+            <span class="status-dot dot-idle" id="status-dot"></span>
+            <span id="task-status-text">IDLE</span>
+          </div>
+          <div class="pill pill-fps">
+            <span class="fps-label">FPS</span>
+            <span id="fps-val">--</span>
+          </div>
+          <div class="pill pill-live">
+            <span class="pulse-indicator"></span> LIVE
+          </div>
         </div>
       </div>
     </header>
 
-    <!-- Main Dual Panel Section -->
-    <main class="dashboard-grid">
-      <!-- Left Panel: Perception & SimplerEnv Camera View -->
-      <section class="card panel-perception">
+    <!-- Main Workspace Split Layout -->
+    <main class="workspace-grid">
+      
+      <!-- ============================================================ -->
+      <!-- LEFT PANEL: Natural Language Chat Console                     -->
+      <!-- ============================================================ -->
+      <section class="card panel-chat" id="panel-chat">
         <div class="card-header">
-          <h2><i class="fa-solid fa-video"></i> SimplerEnv Evaluation Camera View</h2>
-          <div class="cam-controls">
-            <span class="badge-tag" id="task-instruction-badge">Instruction: pick coke can</span>
+          <div class="header-left">
+            <h2 id="console-header-title">LIBERO Benchmark &amp; Chat Console</h2>
+          </div>
+          <div class="header-right">
+            <span class="badge-agent" id="badge-active-agent">
+              <span id="chat-agent-name">MiniVLA (VQ-Libero90)</span>
+            </span>
           </div>
         </div>
 
-        <div class="video-container">
-          <img id="stream-frame" src="" alt="SimplerEnv Camera Stream" />
+        <!-- LIBERO Mini-Suite Selector & Task Control Bar -->
+        <div class="libero-suite-panel" id="libero-suite-panel">
+          <div class="libero-panel-header">
+            <div class="libero-title-row">
+              <span class="libero-title"><i class="fa-solid fa-cube"></i> LIBERO Mini-Suite</span>
+              <span class="badge-tag libero-badge" id="libero-suite-badge">libero_spatial</span>
+            </div>
+          </div>
           
-          <!-- TASK RESULT OVERLAY BANNER (SUCCESS / FAILED) -->
-          <div class="task-result-banner hidden" id="task-result-banner">
-            <i class="fa-solid fa-trophy"></i> <span id="task-result-text">TASK SUCCESSFUL!</span>
+          <div class="libero-selectors-row">
+            <div class="libero-field">
+              <label for="libero-tier-select">Tier:</label>
+              <select id="libero-tier-select" class="select-dropdown">
+                <option value="1" selected>Tier 1 — Spatial Manipulation</option>
+                <option value="2">Tier 2 — Diverse Object Manipulation</option>
+                <option value="3">Tier 3 — Goal &amp; Articulation</option>
+                <option value="4">Tier 4 — Long-Horizon Sequential</option>
+              </select>
+            </div>
+            <div class="libero-field task-field">
+              <label for="libero-task-select">Tác vụ (Task):</label>
+              <select id="libero-task-select" class="select-dropdown">
+                <!-- Dynamically populated from /api/libero/tasks -->
+              </select>
+            </div>
           </div>
 
-          <div class="video-overlay-banner" id="prompt-overlay">
-            <span class="badge-tag">DYNAMIC PROMPT</span>
-            <span id="overlay-prompt-text">Initializing VLA state...</span>
+          <div class="libero-instruction-box">
+            <div class="libero-inst-header">
+              <span class="libero-inst-label"><i class="fa-solid fa-terminal"></i> Câu lệnh BDDL chuẩn:</span>
+              <button class="btn-libero-use-prompt" id="btn-use-default-prompt" title="Dán câu lệnh này vào ô nhập chỉ thị">Dùng Lệnh Này</button>
+            </div>
+            <div class="libero-inst-text" id="libero-default-prompt">pick up the black bowl between the plate and the ramekin and place it on the plate</div>
+          </div>
+
+          <div class="libero-actions-bar">
+            <button id="btn-libero-execute" class="btn-libero-action btn-execute" title="Khởi chạy mô hình MiniVLA thực hiện tác vụ">
+              <i class="fa-solid fa-play"></i> Thực Thi (MiniVLA)
+            </button>
+            <button id="btn-libero-stop" class="btn-libero-action btn-stop" title="Dừng robot ngay lập tức">
+              <i class="fa-solid fa-stop"></i> Dừng
+            </button>
+            <button id="btn-libero-reset" class="btn-libero-action btn-reset" title="Reset tác vụ về initial state">
+              <i class="fa-solid fa-rotate-left"></i> Reset Task
+            </button>
           </div>
         </div>
 
-        <div class="panel-footer-info">
-          <div class="info-item">
-            <span class="info-label">Tracking Points:</span>
-            <span class="info-value" id="track-points-val">10 active (TAPIR/CoTracker)</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">Painter Overlay:</span>
-            <span class="info-value text-green"><i class="fa-solid fa-circle"></i> Visible / <i class="fa-solid fa-circle text-red"></i> Occluded</span>
-          </div>
-        </div>
-      </section>
-
-      <!-- Right Panel: Three.js 3D Digital Twin View -->
-      <section class="card panel-digital-twin">
-        <div class="card-header">
-          <h2><i class="fa-solid fa-cubes"></i> Three.js 3D Digital Twin (Franka Panda & Checkerboard)</h2>
-          <button id="btn-reset-view" class="btn-icon" title="Reset View Angle">
-            <i class="fa-solid fa-arrows-rotate"></i> Reset View
-          </button>
+        <!-- Quick Prompt Chips -->
+        <div class="chips-container" id="chips-container">
+          <span class="chips-label">Lệnh nhanh:</span>
+          <button class="prompt-chip" data-prompt="Gắp lon súp Campbell vào rỏ">Lon súp</button>
+          <button class="prompt-chip" data-prompt="Gắp chai mù tạt French vào rỏ">Mù tạt</button>
+          <button class="prompt-chip" data-prompt="Gắp hộp xanh dương vào rỏ">Hộp xanh</button>
+          <button class="prompt-chip" data-prompt="Gắp trụ đỏ vào rỏ">Trụ đỏ</button>
+          <button class="prompt-chip" data-prompt="Gắp khối xanh lá vào rỏ">Khối xanh</button>
+          <button class="prompt-chip chip-action" data-prompt="Xáo trộn ngẫu nhiên vị trí các vật">Xáo trộn</button>
+          <button class="prompt-chip chip-action" data-prompt="Reset physics về trạng thái initial">Reset Physics</button>
         </div>
 
-        <div class="canvas-container" id="three-canvas-container">
-          <!-- Three.js Canvas injected here -->
-          <div class="canvas-overlay-telemetry">
-            <div class="telemetry-card">
-              <h4><i class="fa-solid fa-sliders"></i> Joint Angles (qpos)</h4>
-              <div class="joint-grid" id="joint-telemetry-grid">
-                <div>J1: <span id="j1-val">0.00</span>°</div>
-                <div>J2: <span id="j2-val">0.00</span>°</div>
-                <div>J3: <span id="j3-val">0.00</span>°</div>
-                <div>J4: <span id="j4-val">0.00</span>°</div>
-                <div>J5: <span id="j5-val">0.00</span>°</div>
-                <div>J6: <span id="j6-val">0.00</span>°</div>
-                <div>J7: <span id="j7-val">0.00</span>°</div>
-                <div>Gripper: <span id="grp-val">Open</span></div>
-              </div>
+        <!-- Chat Messages Feed -->
+        <div class="chat-feed" id="chat-feed">
+          <!-- Clean Welcome Message -->
+          <div class="message-bubble msg-robot">
+            <div class="msg-avatar">FP</div>
+            <div class="msg-content">
+              <div class="msg-author">Franka Panda Agent <span class="msg-timestamp">Bây giờ</span></div>
+              <p>Hệ thống sẵn sàng. Chọn lệnh nhanh hoặc nhập chỉ thị để điều khiển cánh tay Franka Panda thực hiện thao tác gắp và đặt vật thể vào rỏ.</p>
             </div>
           </div>
         </div>
 
-        <div class="panel-footer-info">
-          <div class="info-item">
-            <span class="info-label">TCP Pos (XYZ):</span>
-            <span class="info-value" id="tcp-xyz-val">[0.50, 0.00, 0.45] m</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">Target Pos (XYZ):</span>
-            <span class="info-value" id="target-xyz-val">[0.55, 0.15, 0.38] m</span>
+        <!-- Chat Input & Quick Actions -->
+        <div class="chat-input-wrapper">
+          <form class="chat-input-form" id="chat-form">
+            <div class="input-container">
+              <input 
+                type="text" 
+                id="chat-input" 
+                class="chat-text-input" 
+                placeholder="Nhập chỉ thị điều khiển robot..."
+                autocomplete="off"
+              />
+              <button type="submit" id="btn-chat-send" class="btn-send" title="Gửi chỉ thị">Gửi</button>
+            </div>
+          </form>
+
+          <div class="chat-quick-actions">
+            <button id="btn-quick-randomize" class="btn-quick" title="Xáo trộn vị trí 5 vật thể">
+              Xáo trộn
+            </button>
+            <button id="btn-quick-reset" class="btn-quick" title="Khôi phục toàn bộ vật lý về trạng thái initial">
+              Reset Physics
+            </button>
+            <button id="btn-quick-open-gripper" class="btn-quick" title="Mở ngón kẹp">
+              Mở kẹp
+            </button>
+            <button id="btn-quick-close-gripper" class="btn-quick" title="Đóng ngón kẹp">
+              Đóng kẹp
+            </button>
           </div>
         </div>
       </section>
+
+      <!-- ============================================================ -->
+      <!-- RIGHT PANEL: Direct MuJoCo Dual-Camera Viewport              -->
+      <!-- ============================================================ -->
+      <section class="card panel-viewport" id="panel-viewport">
+        <div class="card-header">
+          <div class="header-left">
+            <h2>Dual-Camera Viewport</h2>
+          </div>
+          
+          <div class="header-right">
+            <!-- Camera View Mode Selector -->
+            <div class="cam-mode-buttons">
+              <button id="btn-view-dual" class="btn-view-mode active" title="Hiển thị song song Agentview & Eye-in-Hand">
+                Dual View
+              </button>
+              <button id="btn-view-top" class="btn-view-mode" title="Góc nhìn toàn cảnh 45° (agentview)">
+                agentview
+              </button>
+              <button id="btn-view-wrist" class="btn-view-mode" title="Góc nhìn cổ tay robot (robot0_eye_in_hand)">
+                eye_in_hand
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Camera Views Display Container -->
+        <div class="viewport-screens-container" id="viewport-container" data-layout="dual">
+          
+          <!-- Top / Agentview Camera Box -->
+          <div class="camera-viewport-box" id="box-cam-top">
+            <div class="cam-box-header">
+              <span class="cam-label" id="cam-top-label">agentview (Camera Trước 45°)</span>
+            </div>
+            <div class="cam-image-frame">
+              <img id="stream-top-frame" src="" alt="" />
+              <div class="crosshair-overlay">
+                <div class="crosshair-ch"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Wrist / Eye-in-Hand Camera Box -->
+          <div class="camera-viewport-box" id="box-cam-wrist">
+            <div class="cam-box-header">
+              <span class="cam-label" id="cam-wrist-label">robot0_eye_in_hand (Camera Cổ Tay)</span>
+            </div>
+            <div class="cam-image-frame">
+              <img id="stream-wrist-frame" src="" alt="" />
+              <div class="crosshair-overlay">
+                <div class="crosshair-ch"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Task Result Success Banner -->
+          <div class="task-result-overlay hidden" id="task-result-overlay">
+            <div class="task-result-card">
+              <div class="result-icon-glow">SUCCESS</div>
+              <h3>NHIỆM VỤ HOÀN THÀNH!</h3>
+              <p id="task-result-desc">Vật thể đã được gắp và đặt an toàn vào rỏ đựng.</p>
+              <button class="btn-result-dismiss" id="btn-dismiss-banner">
+                Tiếp tục
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Objects Roster Shelf -->
+        <div class="objects-roster-bar">
+          <div class="roster-title">Vật thể:</div>
+          <div class="roster-chips" id="roster-chips-container">
+            <button class="roster-chip active" data-target="can">
+              <span class="roster-color-dot" style="background:#e11d48;"></span>
+              <span class="roster-name">Lon súp</span>
+              <span class="roster-coord" id="coord-can">[0.48, 0.00, 0.40]</span>
+            </button>
+            <button class="roster-chip" data-target="mustard">
+              <span class="roster-color-dot" style="background:#eab308;"></span>
+              <span class="roster-name">Mù tạt</span>
+              <span class="roster-coord" id="coord-mustard">[0.52, 0.12, 0.42]</span>
+            </button>
+            <button class="roster-chip" data-target="blue_box">
+              <span class="roster-color-dot" style="background:#2563eb;"></span>
+              <span class="roster-name">Hộp xanh</span>
+              <span class="roster-coord" id="coord-blue_box">[0.45, -0.08, 0.39]</span>
+            </button>
+            <button class="roster-chip" data-target="red_cylinder">
+              <span class="roster-color-dot" style="background:#dc2626;"></span>
+              <span class="roster-name">Trụ đỏ</span>
+              <span class="roster-coord" id="coord-red_cylinder">[0.55, -0.04, 0.41]</span>
+            </button>
+            <button class="roster-chip" data-target="green_cube">
+              <span class="roster-color-dot" style="background:#16a34a;"></span>
+              <span class="roster-name">Khối xanh</span>
+              <span class="roster-coord" id="coord-green_cube">[0.50, 0.06, 0.39]</span>
+            </button>
+            <div class="roster-chip roster-basket">
+              <span class="roster-color-dot" style="background:#0284c7;"></span>
+              <span class="roster-name">Rỏ đựng</span>
+              <span class="roster-coord" id="coord-basket">[0.45, -0.22, 0.37]</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- The Chronicler Dynamic Prompt Display Strip -->
+        <div class="dynamic-prompt-strip">
+          <div class="dp-header">
+            <span class="dp-badge">CHRONICLER PROMPT</span>
+            <span class="dp-phase-tag" id="dp-phase-tag">IDLE</span>
+          </div>
+          <div class="dp-content" id="dp-content-text">
+            [Task]: Grasp target object | [Status]: IDLE. Robot ready.
+          </div>
+        </div>
+
+      </section>
     </main>
 
-    <!-- Bottom Section: Chronicler Log & Command Controls -->
-    <footer class="controls-and-logs">
-      <!-- Human Command Input Bar -->
-      <div class="command-bar card">
-        <div class="command-input-group">
-          <i class="fa-solid fa-terminal prompt-icon"></i>
-          <input type="text" id="human-command-input" value="Grasp the orange object" placeholder="Enter natural language instruction (e.g. Grasp the orange object)..." />
-          <button id="btn-send-command" class="btn-primary">
-            <i class="fa-solid fa-paper-plane"></i> Send Instruction
-          </button>
+    <!-- ============================================================ -->
+    <!-- BOTTOM TELEMETRY STRIP: 7-DoF Kinematics & Gripper State     -->
+    <!-- ============================================================ -->
+    <section class="card telemetry-strip" id="telemetry-strip">
+      <div class="telemetry-inner">
+        <!-- Joint Angles -->
+        <div class="telemetry-block joints-block">
+          <div class="block-title">7-DoF Joint Angles</div>
+          <div class="joints-grid">
+            <div class="joint-cell">
+              <span class="j-label">q1</span>
+              <span class="j-val" id="j1-val">0.0°</span>
+            </div>
+            <div class="joint-cell">
+              <span class="j-label">q2</span>
+              <span class="j-val" id="j2-val">-28.6°</span>
+            </div>
+            <div class="joint-cell">
+              <span class="j-label">q3</span>
+              <span class="j-val" id="j3-val">0.0°</span>
+            </div>
+            <div class="joint-cell">
+              <span class="j-label">q4</span>
+              <span class="j-val" id="j4-val">-114.6°</span>
+            </div>
+            <div class="joint-cell">
+              <span class="j-label">q5</span>
+              <span class="j-val" id="j5-val">0.0°</span>
+            </div>
+            <div class="joint-cell">
+              <span class="j-label">q6</span>
+              <span class="j-val" id="j6-val">91.7°</span>
+            </div>
+            <div class="joint-cell">
+              <span class="j-label">q7</span>
+              <span class="j-val" id="j7-val">45.0°</span>
+            </div>
+          </div>
         </div>
-        <div class="action-buttons">
-          <button id="btn-reposition-target" class="btn-secondary">
-            <i class="fa-solid fa-location-dot"></i> Move Target Randomly
-          </button>
-          <button id="btn-reset-sim" class="btn-danger">
-            <i class="fa-solid fa-rotate-left"></i> Reset Physics
-          </button>
-        </div>
-      </div>
 
-      <!-- Chronicler Memory Log Feed -->
-      <div class="chronicler-feed card">
-        <div class="card-header-sm">
-          <h3><i class="fa-solid fa-clock-rotate-left"></i> The Chronicler — Memory-as-a-Prompt Stream</h3>
-          <span class="feed-rate">Tick Rate: 7.0 Hz</span>
+        <!-- End Effector Cartesian Coordinates -->
+        <div class="telemetry-block tcp-block">
+          <div class="block-title">TCP Position</div>
+          <div class="coord-display">
+            <div class="coord-item">X: <span class="coord-val" id="tcp-x">0.450</span> m</div>
+            <div class="coord-item">Y: <span class="coord-val" id="tcp-y">0.000</span> m</div>
+            <div class="coord-item">Z: <span class="coord-val" id="tcp-z">0.520</span> m</div>
+          </div>
         </div>
-        <div class="log-container" id="chronicler-log-list">
-          <div class="log-item">
-            <span class="log-time">[00:00:00]</span>
-            <span class="log-prompt">[Task]: Grasp the orange object | [Status]: Target initialized on table surface. Gripper open.</span>
+
+        <!-- Action Chunk (7-DoF Vector) -->
+        <div class="telemetry-block action-chunk-block" id="block-action-chunk">
+          <div class="block-title">Action Chunk (7-DoF)</div>
+          <div class="action-chunk-display">
+            <span class="chunk-val" id="chunk-dx" title="delta X">dx: 0.000</span>
+            <span class="chunk-val" id="chunk-dy" title="delta Y">dy: 0.000</span>
+            <span class="chunk-val" id="chunk-dz" title="delta Z">dz: 0.000</span>
+            <span class="chunk-val" id="chunk-dr" title="delta Roll">dr: 0.00</span>
+            <span class="chunk-val" id="chunk-dp" title="delta Pitch">dp: 0.00</span>
+            <span class="chunk-val" id="chunk-dyaw" title="delta Yaw">dy: 0.00</span>
+            <span class="chunk-val chunk-grp" id="chunk-grp" title="Gripper (-1 Open, +1 Close)">grp: -1.0</span>
+          </div>
+        </div>
+
+        <!-- Task Progress (%) Bar -->
+        <div class="telemetry-block progress-block" id="block-progress">
+          <div class="block-title">Task Progress (%)</div>
+          <div class="progress-display">
+            <div class="progress-gauge-track">
+              <div class="progress-gauge-fill" id="progress-bar-fill" style="width: 0%;"></div>
+            </div>
+            <div class="progress-meta-row">
+              <span id="progress-pct-val" class="progress-pct-text">0.0%</span>
+              <span id="progress-step-val" class="progress-step-text">Step 0 / 150</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Franka Parallel Gripper Status -->
+        <div class="telemetry-block gripper-block">
+          <div class="block-title">Parallel Gripper</div>
+          <div class="gripper-display">
+            <div class="gripper-gauge-track">
+              <div class="gripper-gauge-fill" id="gripper-fill" style="width: 100%;"></div>
+            </div>
+            <div class="gripper-readout">
+              <span id="gripper-mm-val">80.0 mm</span>
+              <span class="gripper-state-tag" id="gripper-state-tag">OPEN</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step & Goal Status -->
+        <div class="telemetry-block task-meta-block">
+          <div class="block-title">Execution Step</div>
+          <div class="meta-display">
+            <span class="meta-step" id="step-counter-val">Step: 0 / 160</span>
+            <span class="meta-containment" id="basket-containment-tag">Ngoài rỏ</span>
           </div>
         </div>
       </div>
-    </footer>
+    </section>
+
+  </div>
+
+  <!-- Modal for API Configuration (Gemini Robotics VLM & Remote GPU) -->
+  <div class="modal-backdrop hidden" id="api-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Cấu hình API VLM &amp; Robotics</h3>
+        <button id="btn-close-modal" class="btn-icon">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">Cấu hình khóa API để kích hoạt suy luận ngôn ngữ - thị giác đa phương thức hoặc server GPU từ xa:</p>
+        <div class="modal-field">
+          <label for="input-gemini-key">Gemini API Key (Google AI Studio):</label>
+          <input type="password" id="input-gemini-key" placeholder="AIzaSy..." />
+          <small style="color: var(--text-muted); font-size: 11px; margin-top: 4px; display: block;">Lưu vào file .env để kích hoạt mô hình Gemini Robotics VLM trực tiếp trên camera Dual-View.</small>
+        </div>
+        <div class="modal-field" style="margin-top: 14px;">
+          <label for="input-api-url">Remote VLA GPU Endpoint (Tùy chọn OpenVLA / Pi0):</label>
+          <input type="url" id="input-api-url" placeholder="https://your-gpu-instance.runpod.net/predict" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-cancel-modal" class="btn-secondary">Hủy</button>
+        <button id="btn-save-api" class="btn-primary">Lưu &amp; Kích hoạt</button>
+      </div>
+    </div>
   </div>
 
   <script src="app.js"></script>

@@ -81,10 +81,13 @@ python src/main.py --task google_robot_pick_coke_can --mode teleop
 python scripts/replay_trajectory.py --file data/trajectories/<tệp_trajectory>.json --visualize
 ```
 
-### 5. Giao diện Web Visualization & Digital Twin:
+### 5. Giao diện Tương tác Franka Panda MuJoCo VLA Workspace:
 ```bash
-# Khởi chạy Web Server tại cổng 8080
-python src/main.py --web --port 8080
+# Khởi chạy giao diện chính tại cổng 8080 (Mặc định)
+python run.py
+
+# Hoặc tùy chỉnh cổng
+python run.py --port 8080
 # Mở trình duyệt tại: http://localhost:8080
 ```
 

@@ -121,21 +121,57 @@ class SimplerEnvAdapter:
             self.joint_positions = np.array([0.0, -0.4, 0.0, -1.8, 0.0, 1.4, 0.0], dtype=np.float32)
             self.joint_velocities = np.zeros(7, dtype=np.float32)
 
-            if "pick_coke_can" in self.task_name:
-                # Target coke can initial location on table (z=0.38m)
-                rand_x = float(rng.uniform(0.48, 0.55))
-                rand_y = float(rng.uniform(-0.06, 0.06))
-                self.target_pos = np.array([rand_x, rand_y, 0.38], dtype=np.float32)
-                self.initial_target_z = 0.38
-                self.is_grasped = False
-                self.lift_height = 0.0
-            elif "drawer" in self.task_name:
+            # Multi-Object Tabletop Physical Workspace
+            rand_x = float(rng.uniform(0.48, 0.55))
+            rand_y = float(rng.uniform(-0.06, 0.06))
+            self.objects = {
+                "can": {
+                    "name": "Coke / Seafood Can",
+                    "pos": np.array([rand_x, rand_y, 0.38], dtype=np.float32),
+                    "initial_z": 0.38,
+                    "is_grasped": False,
+                    "lift_height": 0.0
+                },
+                "red_bottle": {
+                    "name": "Red Condiment Bottle",
+                    "pos": np.array([0.48, -0.02, 0.38], dtype=np.float32),
+                    "initial_z": 0.38,
+                    "is_grasped": False,
+                    "lift_height": 0.0
+                },
+                "blue_box": {
+                    "name": "Small Blue Box",
+                    "pos": np.array([0.46, 0.06, 0.38], dtype=np.float32),
+                    "initial_z": 0.38,
+                    "is_grasped": False,
+                    "lift_height": 0.0
+                },
+                "dark_bottle": {
+                    "name": "Dark Syrup Bottle",
+                    "pos": np.array([0.40, 0.16, 0.38], dtype=np.float32),
+                    "initial_z": 0.38,
+                    "is_grasped": False,
+                    "lift_height": 0.0
+                },
+                "basket": {
+                    "name": "Wicker Basket",
+                    "pos": np.array([0.38, -0.15, 0.38], dtype=np.float32),
+                    "initial_z": 0.38,
+                    "is_grasped": False,
+                    "lift_height": 0.0
+                }
+            }
+            self.active_target_id = "can"
+            self.target_pos = self.objects["can"]["pos"]
+            self.initial_target_z = 0.38
+            self.is_grasped = False
+            self.lift_height = 0.0
+
+            if "drawer" in self.task_name:
                 # Cabinet handle location
                 self.target_pos = np.array([0.52, 0.0, 0.42], dtype=np.float32)
-                self.drawer_displacement = 0.0  # Open displacement in meters
+                self.drawer_displacement = 0.0
                 self.drawer_max_open = 0.20
-            else:
-                self.target_pos = np.array([0.50, 0.0, 0.38], dtype=np.float32)
 
         else:
             # WidowX Robot initial workspace
@@ -183,6 +219,55 @@ class SimplerEnvAdapter:
             "is_native": False
         }
         return obs, reset_info
+
+    def is_pick_and_place_task(self):
+        """Checks whether current task or instruction requires Pick-and-Place."""
+        text = f"{self.task_name} {self.instruction}".lower()
+        pnp_keywords = ["put", "place", "basket", "in_basket", "vào giỏ", "bỏ vào", "đặt vào", "pick and place", "pick_and_place"]
+        return any(k in text for k in pnp_keywords)
+
+    def set_target_object(self, target_id):
+        """Sets the active target object to be manipulated based on Visual Grounding."""
+        if hasattr(self, "objects") and target_id in self.objects:
+            self.active_target_id = target_id
+            self.target_pos = self.objects[target_id]["pos"]
+            self.initial_target_z = self.objects[target_id]["initial_z"]
+            self.is_grasped = self.objects[target_id]["is_grasped"]
+            self.lift_height = self.objects[target_id]["lift_height"]
+            print(f"[SimplerEnvAdapter] Active target set to '{target_id}' at {self.target_pos.tolist()}")
+            return True
+        return False
+
+    def reposition_object(self, obj_id=None):
+        """Randomizes the position of the specified object (or active target) on the tabletop."""
+        if not hasattr(self, "objects") or not self.objects:
+            return self.target_pos.tolist()
+
+        if obj_id is None or obj_id not in self.objects:
+            obj_id = getattr(self, "active_target_id", "can")
+            if obj_id not in self.objects or obj_id == "basket":
+                obj_id = "can"
+
+        rng = np.random.RandomState()
+        # Ensure object stays on tabletop in graspable workspace and away from basket
+        rx = float(rng.uniform(0.44, 0.54))
+        ry = float(rng.uniform(-0.06, 0.08))
+        rz = float(self.objects[obj_id]["initial_z"])
+
+        self.objects[obj_id]["pos"] = np.array([rx, ry, rz], dtype=np.float32)
+        self.objects[obj_id]["is_grasped"] = False
+        self.objects[obj_id]["lift_height"] = 0.0
+
+        if obj_id == self.active_target_id:
+            self.target_pos = self.objects[obj_id]["pos"]
+            self.initial_target_z = rz
+            self.is_grasped = False
+            self.lift_height = 0.0
+
+        self.success_counter = 0
+        self.is_success = False
+        print(f"[SimplerEnvAdapter] Repositioned '{obj_id}' to [{rx:.3f}, {ry:.3f}, {rz:.3f}]")
+        return self.objects[obj_id]["pos"].tolist()
 
     def step(self, action):
         """
@@ -243,39 +328,65 @@ class SimplerEnvAdapter:
         self.joint_positions[3] += dz * 2.0
         self.joint_velocities = np.array([dy * 20.0, -dx * 20.0, 0.0, dz * 20.0, 0.0, 0.0, 0.0], dtype=np.float32)
 
-        # Physical Task Logic & Interaction
+        # Physical Task Logic & Interaction for Multi-Object Tabletop
         reward = 0.0
         subgoals = {}
 
-        if "pick_coke_can" in self.task_name:
-            dist_to_obj = float(np.linalg.norm(self.tcp_pos - self.target_pos))
+        # Check interaction with active target object
+        active_obj = self.objects.get(self.active_target_id, self.objects.get("can"))
+        if active_obj is not None:
+            dist_to_obj = float(np.linalg.norm(self.tcp_pos - active_obj["pos"]))
             subgoals["approached"] = dist_to_obj < 0.04
 
             # Grasp check: close proximity + closed gripper
-            if dist_to_obj < 0.035 and self.gripper_width < 0.40:
+            if dist_to_obj < 0.038 and self.gripper_width < 0.40:
+                active_obj["is_grasped"] = True
                 self.is_grasped = True
             elif self.gripper_width > 0.60:
+                active_obj["is_grasped"] = False
                 self.is_grasped = False
 
             # If grasped, target moves with gripper
-            if self.is_grasped:
-                self.target_pos[0] = self.tcp_pos[0]
-                self.target_pos[1] = self.tcp_pos[1]
-                self.target_pos[2] = max(self.initial_target_z, self.tcp_pos[2] - 0.02)
+            if active_obj["is_grasped"]:
+                active_obj["pos"][0] = self.tcp_pos[0]
+                active_obj["pos"][1] = self.tcp_pos[1]
+                active_obj["pos"][2] = max(active_obj["initial_z"], self.tcp_pos[2] - 0.02)
+                self.target_pos = active_obj["pos"]
 
-            self.lift_height = float(max(0.0, self.target_pos[2] - self.initial_target_z))
-            subgoals["grasped"] = self.is_grasped
+            active_obj["lift_height"] = float(max(0.0, active_obj["pos"][2] - active_obj["initial_z"]))
+            self.lift_height = active_obj["lift_height"]
+            subgoals["grasped"] = active_obj["is_grasped"]
             subgoals["lifted"] = self.lift_height >= 0.05
 
-            # Ground-truth Success Condition for Pick:
-            # Object lifted >= 5cm above table surface, held steadily
-            if self.lift_height >= 0.05 and self.is_grasped:
-                self.success_counter += 1
-            else:
-                self.success_counter = max(0, self.success_counter - 1)
+            is_pnp = self.is_pick_and_place_task()
+            if is_pnp:
+                # Basket location
+                basket_pos = self.objects.get("basket", {}).get("pos", np.array([0.38, -0.15, 0.38], dtype=np.float32))
+                dist_to_basket_xy = float(np.linalg.norm(active_obj["pos"][:2] - basket_pos[:2]))
+                subgoals["transported"] = dist_to_basket_xy < 0.08
+                subgoals["placed_in_basket"] = (dist_to_basket_xy < 0.08) and (active_obj["pos"][2] <= basket_pos[2] + 0.06)
+                subgoals["released"] = (not active_obj["is_grasped"]) and (self.gripper_width > 0.50)
 
-            self.is_success = bool(self.success_counter >= 3)
-            reward = 1.0 if self.is_success else (0.5 if self.is_grasped else max(0.0, 1.0 - dist_to_obj * 3.0))
+                # Pick-and-Place ground truth success:
+                # 1. Object placed in basket cavity (within 8cm horizontally, low height)
+                # 2. Gripper released the object
+                if subgoals["placed_in_basket"] and subgoals["released"]:
+                    self.success_counter += 1
+                else:
+                    self.success_counter = max(0, self.success_counter - 1)
+
+                self.is_success = bool(self.success_counter >= 3)
+                reward = 1.0 if self.is_success else (0.7 if subgoals["transported"] else (0.4 if active_obj["is_grasped"] else 0.1))
+            else:
+                # Ground-truth Success Condition for Pick:
+                # Active object lifted >= 5cm above table surface, held steadily
+                if self.lift_height >= 0.05 and active_obj["is_grasped"]:
+                    self.success_counter += 1
+                else:
+                    self.success_counter = max(0, self.success_counter - 1)
+
+                self.is_success = bool(self.success_counter >= 3)
+                reward = 1.0 if self.is_success else (0.5 if self.is_grasped else max(0.0, 1.0 - dist_to_obj * 3.0))
 
         elif "open_drawer" in self.task_name:
             dist_to_handle = float(np.linalg.norm(self.tcp_pos - self.target_pos))
@@ -408,6 +519,7 @@ class SimplerEnvAdapter:
         tcp_quat = [float(qw), float(qx), float(qy), float(qz)]
         tcp_euler = [float(roll), float(pitch), float(yaw)]
 
+        objs_dict = {k: v["pos"].tolist() for k, v in self.objects.items()} if hasattr(self, "objects") else {}
         return {
             "tcp_pos": self.tcp_pos.tolist(),
             "tcp_rot_euler": tcp_euler,
@@ -415,14 +527,15 @@ class SimplerEnvAdapter:
             "gripper_width": float(self.gripper_width),
             "joint_positions": self.joint_positions.tolist(),
             "joint_velocities": self.joint_velocities.tolist(),
-            "target_pos": self.target_pos.tolist()
+            "target_pos": self.target_pos.tolist(),
+            "active_target_id": getattr(self, "active_target_id", "can"),
+            "objects": objs_dict
         }
 
     def get_camera_calibration(self):
         """
         Returns intrinsic matrix K and extrinsic matrix T for the primary evaluation viewpoint.
         """
-        # Focal length and principal point for 300x300 or 256x256
         f = float(self.width * 1.1)
         cx = float(self.width / 2.0)
         cy = float(self.height / 2.0)
@@ -433,7 +546,6 @@ class SimplerEnvAdapter:
             [0.0, 0.0, 1.0]
         ]
 
-        # Overhead/Front angled viewpoint
         T_extrinsic = [
             [1.0, 0.0, 0.0, 0.0],
             [0.0, 0.707, -0.707, 0.8],
@@ -450,79 +562,191 @@ class SimplerEnvAdapter:
 
     def _render_emulated_rgb(self):
         """
-        Renders a photorealistic emulated scene matching Google Robot / WidowX viewpoints.
+        Renders a photorealistic emulated scene matching the Bridge dataset / SimplerEnv photo:
+        - Multi-toned oak parquet wood floor with realistic plank grain, seams and specular sheen.
+        - Dynamic soft contact shadows (ambient occlusion) under all tabletop objects.
+        - Realistic PBR-style shading for Can, Red Bottle, Blue Box, Dark Syrup Bottle, and Basket.
+        - Dynamic lifting physics: lifted objects float up and cast fading, expanding shadows.
         """
-        frame = np.ones((self.height, self.width, 3), dtype=np.uint8) * 50
+        frame = np.ones((self.height, self.width, 3), dtype=np.uint8) * 60
 
-        # Render Table Surface (Wood/Gray texture with grid)
-        table_top_y = int(self.height * 0.42)
-        frame[table_top_y:, :] = [70, 75, 80]
-        for y in range(table_top_y, self.height, 25):
-            cv2.line(frame, (0, y), (self.width, y), (85, 90, 95), 1)
-        for x in range(0, self.width, 30):
-            cv2.line(frame, (x, table_top_y), (x, self.height), (85, 90, 95), 1)
+        # 1. Photorealistic Wood Parquet Floor (Oak planks with natural grain & soft lighting)
+        plank_w = max(24, int(self.width / 8.0))
+        plank_base = [
+            (92, 106, 118), (80, 94, 106), (98, 112, 124), (76, 88, 100),
+            (90, 104, 116), (96, 110, 122), (82, 94, 106), (88, 102, 114)
+        ]
+        for col_idx in range(8):
+            x1 = col_idx * plank_w
+            x2 = min(self.width, (col_idx + 1) * plank_w)
+            base_col = plank_base[col_idx % len(plank_base)]
+            cv2.rectangle(frame, (x1, 0), (x2, self.height), base_col, -1)
+            # Subtle wood grain striations
+            for gy in range(4, self.height, 8):
+                grain_val = (base_col[0] - 6, base_col[1] - 6, base_col[2] - 6)
+                cv2.line(frame, (x1 + 1, gy), (x2 - 1, gy), grain_val, 1)
+            # Vertical plank seam (dark groove + subtle highlight bevel)
+            cv2.line(frame, (x1, 0), (x1, self.height), (35, 42, 48), 1)
+            cv2.line(frame, (x1 + 1, 0), (x1 + 1, self.height), (120, 134, 146), 1)
+            # Staggered horizontal plank joints
+            seam_y1 = (col_idx * 75 + 50) % self.height
+            seam_y2 = (seam_y1 + self.height // 2) % self.height
+            cv2.line(frame, (x1, seam_y1), (x2, seam_y1), (35, 42, 48), 1)
+            cv2.line(frame, (x1, seam_y2), (x2, seam_y2), (35, 42, 48), 1)
+
+        # 2. Render White Robot Base at top-center
+        rx = int(self.width * 0.50)
+        ry = int(self.height * 0.15)
+        # Base swivel mount & shadows
+        cv2.ellipse(frame, (rx, ry + 10), (int(28 * (self.width / 300.0)), int(10 * (self.height / 300.0))), 0, 0, 360, (50, 58, 66), -1)
+        cv2.circle(frame, (rx, ry), int(22 * (self.width / 300.0)), (215, 220, 225), -1)
+        cv2.circle(frame, (rx, ry), int(22 * (self.width / 300.0)), (160, 165, 170), 2)
+        cv2.rectangle(frame, (rx - 10, ry - 35), (rx + 10, ry), (230, 235, 240), -1)
+        cv2.rectangle(frame, (rx - 10, ry - 35), (rx + 10, ry), (170, 175, 180), 1)
+        cv2.circle(frame, (rx, ry - 35), 12, (240, 245, 250), -1)
+        cv2.rectangle(frame, (rx - 4, ry - 20), (rx + 4, ry - 5), (110, 115, 120), -1)
 
         # 3D to 2D projection function for tabletop objects
         def project(pt3d):
-            # pt3d: [x, y, z] -> meters relative to robot base
-            # x is forward, y is left/right, z is height
-            u = int(self.width * 0.5 + pt3d[1] * (self.width * 1.8))
-            v = int(self.height * 0.82 - (pt3d[0] - 0.40) * (self.height * 1.4) - (pt3d[2] - 0.38) * (self.height * 1.2))
+            u = int(self.width * 0.5 + pt3d[1] * (self.width * 1.7))
+            v = int(self.height * 0.78 - (pt3d[0] - 0.40) * (self.height * 1.3) - (pt3d[2] - 0.38) * (self.height * 1.1))
             return max(10, min(self.width - 10, u)), max(10, min(self.height - 10, v))
 
-        # 1. Render Task Objects
-        if "coke_can" in self.task_name:
-            cx, cy = project(self.target_pos)
-            can_h = int(28 * (self.height / 300.0))
-            can_w = int(14 * (self.width / 300.0))
-            # Coke Red cylinder
-            cv2.rectangle(frame, (cx - can_w // 2, cy - can_h), (cx + can_w // 2, cy), (20, 20, 210), -1)
-            cv2.ellipse(frame, (cx, cy - can_h), (can_w // 2, 4), 0, 0, 360, (200, 200, 200), -1)
-            cv2.putText(frame, "Coke", (cx - can_w // 2 + 1, cy - can_h // 2), cv2.FONT_HERSHEY_SIMPLEX, 0.25, (255, 255, 255), 1)
+        # Helper: Draw Realistic Soft Contact Shadow on Floor
+        def draw_drop_shadow(pt3d, base_radius_x, base_radius_y):
+            # Ground projection on table surface (z = 0.38)
+            su, sv = project([pt3d[0], pt3d[1], 0.38])
+            lift_m = max(0.0, float(pt3d[2] - 0.38))
+            # When lifted, shadow expands and becomes softer/more diffuse
+            rx = int(base_radius_x * (1.0 + lift_m * 4.0))
+            ry = int(base_radius_y * (1.0 + lift_m * 3.0))
+            # Shift slightly based on light angle (light from top-left)
+            su += int(lift_m * 18.0)
+            sv += int(lift_m * 12.0)
+            # Create a transparent shadow overlay
+            shadow_overlay = frame.copy()
+            cv2.ellipse(shadow_overlay, (su, sv), (max(4, rx), max(3, ry)), 0, 0, 360, (25, 30, 35), -1)
+            alpha = max(0.20, 0.65 - lift_m * 2.5)
+            cv2.addWeighted(shadow_overlay, alpha, frame, 1.0 - alpha, 0, frame)
 
-        elif "drawer" in self.task_name:
-            # Cabinet body
-            bx, by = project([0.55, 0.0, 0.38])
-            cw, ch = int(100 * (self.width / 300.0)), int(60 * (self.height / 300.0))
-            cv2.rectangle(frame, (bx - cw // 2, by - ch), (bx + cw // 2, by), (40, 80, 130), -1)
-            cv2.rectangle(frame, (bx - cw // 2, by - ch), (bx + cw // 2, by), (100, 140, 190), 2)
+        # Retrieve objects dictionary
+        objs = getattr(self, "objects", {})
 
-            # Drawer front pulling out
-            pull_px = int(self.drawer_displacement * 150)
-            dy = by - int(ch * 0.6) + pull_px // 2
-            cv2.rectangle(frame, (bx - cw // 2 + 5, dy - 20), (bx + cw // 2 - 5, dy), (60, 110, 170), -1)
-            # Handle
-            hx, hy = project(self.target_pos)
-            cv2.rectangle(frame, (hx - 15, hy - 4), (hx + 15, hy + 4), (200, 200, 200), -1)
+        # --- Object 1: Woven Wicker Basket with White Cloth Liner ---
+        basket_pos = objs.get("basket", {}).get("pos", np.array([0.38, -0.15, 0.38]))
+        draw_drop_shadow(basket_pos, 32, 14)
+        bx, by = project(basket_pos)
+        bw = int(58 * (self.width / 300.0))
+        bh = int(48 * (self.height / 300.0))
+        # Wicker outer body with rich rattan gradient
+        cv2.rectangle(frame, (bx - bw // 2, by - bh), (bx + bw // 2, by), (90, 130, 175), -1)
+        for wy in range(by - bh, by, 5):
+            cv2.line(frame, (bx - bw // 2, wy), (bx + bw // 2, wy), (70, 105, 145), 2)
+            cv2.line(frame, (bx - bw // 2, wy + 2), (bx + bw // 2, wy + 2), (110, 150, 195), 1)
+        # White folded cloth liner draped over rim
+        liner_h = int(14 * (self.height / 300.0))
+        cv2.rectangle(frame, (bx - bw // 2 - 2, by - bh - 2), (bx + bw // 2 + 2, by - bh + liner_h), (240, 244, 248), -1)
+        cv2.rectangle(frame, (bx - bw // 2 - 2, by - bh - 2), (bx + bw // 2 + 2, by - bh + liner_h), (175, 180, 185), 1)
+        # Interior cavity shadow
+        cv2.rectangle(frame, (bx - bw // 2 + 4, by - bh + liner_h - 2), (bx + bw // 2 - 4, by - 4), (50, 65, 80), -1)
+        # Bottle resting inside basket
+        cv2.rectangle(frame, (bx - 5, by - bh - 8), (bx + 5, by - bh + liner_h), (15, 55, 95), -1)
+        cv2.rectangle(frame, (bx - 3, by - bh - 16), (bx + 3, by - bh - 8), (20, 65, 110), -1)
+        cv2.circle(frame, (bx, by - bh - 17), 4, (40, 170, 210), -1)
 
-        elif "basket" in self.task_name:
-            # Basket
-            bx, by = project(self.basket_pos)
-            cv2.ellipse(frame, (bx, by), (30, 18), 0, 0, 360, (140, 110, 60), 3)
-            # Eggplant (Purple)
-            ex, ey = project(self.target_pos)
-            cv2.ellipse(frame, (ex, ey - 10), (14, 22), 25, 0, 360, (120, 20, 80), -1)
-            cv2.circle(frame, (ex - 2, ey - 28), 4, (40, 160, 40), -1)
+        # --- Object 2: Red Condiment Bottle (Ketchup) ---
+        red_pos = objs.get("red_bottle", {}).get("pos", np.array([0.48, -0.02, 0.38]))
+        draw_drop_shadow(red_pos, 14, 6)
+        sx, sy = project(red_pos)
+        sw, sh = int(18 * (self.width / 300.0)), int(38 * (self.height / 300.0))
+        # Glossy curved bottle body
+        cv2.rectangle(frame, (sx - sw // 2, sy - sh), (sx + sw // 2, sy), (18, 30, 155), -1)
+        # Specular highlight curve along left bottle edge
+        cv2.line(frame, (sx - sw // 2 + 3, sy - sh + 4), (sx - sw // 2 + 3, sy - 4), (55, 80, 215), 2)
+        # White Heinz-style brand label
+        cv2.rectangle(frame, (sx - sw // 2 + 2, sy - int(sh * 0.65)), (sx + sw // 2 - 2, sy - int(sh * 0.25)), (230, 235, 240), -1)
+        cv2.rectangle(frame, (sx - sw // 2 + 4, sy - int(sh * 0.55)), (sx + sw // 2 - 4, sy - int(sh * 0.35)), (20, 35, 140), -1)
+        # Tapered bottle neck
+        cv2.rectangle(frame, (sx - sw // 2 + 3, sy - sh - 10), (sx + sw // 2 - 3, sy - sh), (25, 45, 175), -1)
+        # White squeeze nozzle cap
+        cv2.rectangle(frame, (sx - 4, sy - sh - 14), (sx + 4, sy - sh - 9), (240, 245, 250), -1)
+        cv2.circle(frame, (sx, sy - sh - 14), 3, (240, 245, 250), -1)
 
-        # 2. Render Robot End-Effector (Gripper)
+        # --- Object 3: Small Blue Box ---
+        blue_pos = objs.get("blue_box", {}).get("pos", np.array([0.46, 0.06, 0.38]))
+        draw_drop_shadow(blue_pos, 16, 7)
+        kx, ky = project(blue_pos)
+        kw, kh = int(16 * (self.width / 300.0)), int(18 * (self.height / 300.0))
+        # Front face of the box
+        cv2.rectangle(frame, (kx - kw // 2, ky - kh), (kx + kw // 2, ky), (150, 90, 30), -1)
+        # Top lid (lighter blue to give 3D perspective depth)
+        cv2.rectangle(frame, (kx - kw // 2, ky - kh - 4), (kx + kw // 2, ky - kh), (180, 120, 50), -1)
+        # Crisp packaging graphics & bevels
+        cv2.rectangle(frame, (kx - kw // 2 + 2, ky - kh + 4), (kx + kw // 2 - 2, ky - kh + 8), (235, 235, 235), -1)
+        cv2.line(frame, (kx - kw // 2 + 2, ky - 4), (kx + kw // 2 - 2, ky - 4), (200, 200, 200), 1)
+
+        # --- Object 4: Dark Syrup Bottle ---
+        dark_pos = objs.get("dark_bottle", {}).get("pos", np.array([0.40, 0.16, 0.38]))
+        draw_drop_shadow(dark_pos, 18, 8)
+        hx, hy = project(dark_pos)
+        hw, hh = int(22 * (self.width / 300.0)), int(46 * (self.height / 300.0))
+        # Deep amber/black translucent glass body
+        cv2.ellipse(frame, (hx, hy - hh // 3), (hw // 2, hh // 3), 0, 0, 360, (20, 22, 30), -1)
+        # Specular shine reflection streak
+        cv2.ellipse(frame, (hx - 4, hy - hh // 3), (hw // 4, hh // 4), -15, 180, 320, (60, 65, 80), 2)
+        # Bottle neck
+        cv2.rectangle(frame, (hx - hw // 4, hy - hh), (hx + hw // 4, hy - int(hh * 0.6)), (15, 16, 22), -1)
+        # Side loop glass handle
+        cv2.ellipse(frame, (hx - hw // 2 - 2, hy - int(hh * 0.65)), (4, 8), 0, 90, 270, (25, 28, 38), 2)
+        # Yellow twist-off cap
+        cv2.rectangle(frame, (hx - 5, hy - hh - 5), (hx + 5, hy - hh), (40, 190, 240), -1)
+
+        # --- Object 5: Can (Blue & Gold Tin Can / Coke Can) ---
+        can_pos = objs.get("can", {}).get("pos", self.target_pos)
+        draw_drop_shadow(can_pos, 18, 8)
+        cx, cy = project(can_pos)
+        can_h = int(32 * (self.height / 300.0))
+        can_w = int(22 * (self.width / 300.0))
+        gold_h = int(can_h * 0.40)
+        # Bottom Golden Yellow band with metallic lighting
+        cv2.rectangle(frame, (cx - can_w // 2, cy - gold_h), (cx + can_w // 2, cy), (35, 165, 220), -1)
+        cv2.line(frame, (cx - can_w // 4, cy - gold_h), (cx - can_w // 4, cy), (70, 200, 255), 2)  # Highlight
+        # Top Royal Blue cylinder body
+        cv2.rectangle(frame, (cx - can_w // 2, cy - can_h), (cx + can_w // 2, cy - gold_h), (145, 70, 22), -1)
+        cv2.line(frame, (cx - can_w // 4, cy - can_h), (cx - can_w // 4, cy - gold_h), (190, 110, 50), 2)  # Highlight
+        # Metallic rim & recessed top lid
+        cv2.ellipse(frame, (cx, cy - can_h), (can_w // 2, 5), 0, 0, 360, (180, 185, 190), -1)
+        cv2.ellipse(frame, (cx, cy - can_h), (can_w // 2, 5), 0, 0, 360, (230, 235, 240), 1)
+        # Aluminum pull tab with rivet
+        cv2.circle(frame, (cx + 2, cy - can_h), 2, (130, 135, 140), -1)
+        cv2.ellipse(frame, (cx - 2, cy - can_h), (4, 2), 0, 0, 360, (190, 195, 200), 1)
+
+        # 8. Render Robot End-Effector / Gripper with Brushed Aluminum Finish
         gx, gy = project(self.tcp_pos)
-        gw = int(self.gripper_width * 20 + 8)
+        gw = int(self.gripper_width * 22 + 8)
 
-        # Wrist mount (Metallic Gray)
-        cv2.circle(frame, (gx, gy - 25), 12, (120, 125, 130), -1)
-        cv2.circle(frame, (gx, gy - 25), 12, (180, 185, 190), 2)
-        cv2.line(frame, (gx - 18, gy - 20), (gx + 18, gy - 20), (140, 145, 150), 4)
+        # Wrist mount (Metallic Gray with specular ring)
+        cv2.circle(frame, (gx, gy - 26), 12, (135, 140, 145), -1)
+        cv2.circle(frame, (gx, gy - 26), 12, (200, 205, 210), 2)
+        cv2.line(frame, (gx - 18, gy - 20), (gx + 18, gy - 20), (160, 165, 170), 4)
 
-        # Fingers (Left & Right)
-        finger_color = (190, 195, 200)
+        # Fingers (Left & Right with depth and rubber grip pads)
+        finger_color = (210, 215, 220)
         cv2.line(frame, (gx - gw // 2, gy - 20), (gx - gw // 2, gy), finger_color, 4)
         cv2.line(frame, (gx + gw // 2, gy - 20), (gx + gw // 2, gy), finger_color, 4)
-        # Rubber tips
-        cv2.circle(frame, (gx - gw // 2, gy), 3, (30, 30, 30), -1)
-        cv2.circle(frame, (gx + gw // 2, gy), 3, (30, 30, 30), -1)
+        # Black rubber grip tips
+        cv2.circle(frame, (gx - gw // 2, gy), 3, (20, 20, 20), -1)
+        cv2.circle(frame, (gx + gw // 2, gy), 3, (20, 20, 20), -1)
 
         # Tool Center Point crosshair
         cv2.drawMarker(frame, (gx, gy), (0, 255, 255), cv2.MARKER_CROSS, 6, 1)
+
+        # 9. Top HUD Text: RUNNING | step/max_steps | retry=0
+        target_label = getattr(self, "active_target_id", "can").replace("_", " ").upper()
+        status_text = f"TARGET: {target_label} | STEP: {self.step_count}/{self.max_steps}"
+        cv2.putText(frame, status_text, (8, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.48, (0, 255, 0), 2, cv2.LINE_AA)
+
+        return frame
 
         return frame
 

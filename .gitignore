@@ -37,7 +37,13 @@ scratch/
 .DS_Store
 
 # Data and replay
-data/trajectories/
+data/
 
 # Format and reference
 format_reference/
+
+# Skills
+.skills/
+
+# Large models
+checkpoints/

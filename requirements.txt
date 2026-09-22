@@ -9,15 +9,28 @@ torch>=2.0.0
 transformers>=4.35.0
 peft>=0.7.0
 accelerate>=0.25.0
+safetensors>=0.4.0
+huggingface-hub>=1.31.0
+
+# VLA Policies & Robotics Transformers
+lerobot>=0.6.1
+robotic-transformer-pytorch>=0.2.3
+flax>=0.8.0
+jax>=0.4.20
 
 # Vision & Graphics
 opencv-python>=4.7.0
 pillow>=9.5.0
 transforms3d>=0.4.1
 
-# Environment & Reinforcement Learning / Robotics
+# Physics & Environment Simulation
+mujoco>=3.1.0
 gymnasium>=0.28.0
 pyyaml>=6.0
+
+# Multimodal API & Networking
+google-genai>=0.1.0
+requests>=2.31.0
 
 # Trajectory Logging & Dataset Storage
 h5py>=3.8.0

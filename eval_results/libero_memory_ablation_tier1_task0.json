@@ -1,0 +1,84 @@
+{
+  "timestamp": "2026-09-22 09:31:58",
+  "tier": 1,
+  "task_id": 0,
+  "task_name": "pick_up_the_black_bowl_between_the_plate_and_the_ramekin_and_place_it_on_the_plate",
+  "instruction": "pick up the black bowl between the plate and the ramekin and place it on the plate",
+  "episodes_per_condition": 1,
+  "summary": {
+    "raw": {
+      "success_count": 0,
+      "total_episodes": 1,
+      "success_rate_pct": 0.0,
+      "avg_steps": 40.0,
+      "avg_jerk": 0.0,
+      "avg_latency_sec": 0.902
+    },
+    "visual_memory": {
+      "success_count": 0,
+      "total_episodes": 1,
+      "success_rate_pct": 0.0,
+      "avg_steps": 40.0,
+      "avg_jerk": 0.0,
+      "avg_latency_sec": 0.871
+    },
+    "temporal_memory": {
+      "success_count": 0,
+      "total_episodes": 1,
+      "success_rate_pct": 0.0,
+      "avg_steps": 40.0,
+      "avg_jerk": 0.0,
+      "avg_latency_sec": 0.861
+    },
+    "full_memory": {
+      "success_count": 0,
+      "total_episodes": 1,
+      "success_rate_pct": 0.0,
+      "avg_steps": 40.0,
+      "avg_jerk": 0.0,
+      "avg_latency_sec": 0.845
+    }
+  },
+  "raw_runs": {
+    "raw": [
+      {
+        "success": false,
+        "steps": 40,
+        "duration": 37.71,
+        "jerk": 0.0,
+        "gripper_variance": 0.0,
+        "avg_step_latency": 0.902
+      }
+    ],
+    "visual_memory": [
+      {
+        "success": false,
+        "steps": 40,
+        "duration": 36.38,
+        "jerk": 0.0,
+        "gripper_variance": 0.0,
+        "avg_step_latency": 0.871
+      }
+    ],
+    "temporal_memory": [
+      {
+        "success": false,
+        "steps": 40,
+        "duration": 35.98,
+        "jerk": 0.0,
+        "gripper_variance": 0.0,
+        "avg_step_latency": 0.861
+      }
+    ],
+    "full_memory": [
+      {
+        "success": false,
+        "steps": 40,
+        "duration": 35.25,
+        "jerk": 0.0,
+        "gripper_variance": 0.0,
+        "avg_step_latency": 0.845
+      }
+    ]
+  }
+}

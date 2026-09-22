@@ -16,7 +16,16 @@ from chronicler import Chronicler
 from spatial_tracker import SpatialTracker
 from painter import Painter
 from sync_layer import SyncLayer
-from vla_wrapper import MockVLAWrapper, OctoWrapper, OpenVLAWrapper, Pi0Wrapper, RTXWrapper
+from vla_wrapper import (
+    MockVLAWrapper,
+    OctoWrapper,
+    OpenVLAWrapper,
+    Pi0Wrapper,
+    RTXWrapper,
+    SmolVLAWrapper,
+    check_model_readiness,
+    get_all_models_status
+)
 
 
 class TestVLAMiddleware(unittest.TestCase):
@@ -29,6 +38,7 @@ class TestVLAMiddleware(unittest.TestCase):
         """
         wrappers = [
             MockVLAWrapper(),
+            SmolVLAWrapper(),
             OctoWrapper(),
             OpenVLAWrapper(),
             Pi0Wrapper(),
@@ -160,6 +170,63 @@ class TestVLAMiddleware(unittest.TestCase):
         
         painted = painter.draw_overlay(self.dummy_image, pts, flags, prompt)
         self.assertEqual(painted.shape, self.dummy_image.shape)
+
+    def test_model_readiness_and_ghosting(self):
+        """
+        Verifies that Octo and RT-1 are always ready, while OpenVLA and Pi0
+        are marked not ready (ghosted) when no API URL is provided, and ready when API URL is filled.
+        """
+        # 1. Without API URL: Octo & RT-1 ready, OpenVLA & Pi0 not ready
+        octo_stat = check_model_readiness("octo", api_url="")
+        self.assertTrue(octo_stat["ready"])
+        self.assertTrue(any(w in octo_stat["badge"] for w in ["Ready", "Downloaded", "GPU", "Simulation"]))
+
+        rt1_stat = check_model_readiness("rt1", api_url="")
+        self.assertTrue(rt1_stat["ready"])
+
+        openvla_stat = check_model_readiness("openvla", api_url="")
+        self.assertFalse(openvla_stat["ready"])
+        self.assertTrue(openvla_stat["requires_api"])
+        self.assertIn("API Required", openvla_stat["badge"])
+
+        pi0_stat = check_model_readiness("pi0", api_url="")
+        self.assertFalse(pi0_stat["ready"])
+        self.assertTrue(pi0_stat["requires_api"])
+
+        smol_stat = check_model_readiness("smolvla", api_url="")
+        self.assertTrue(smol_stat["ready"])
+
+        # 2. With API URL provided: OpenVLA & Pi0 become ready
+        openvla_ready = check_model_readiness("openvla", api_url="http://localhost:8000/act")
+        self.assertTrue(openvla_ready["ready"])
+        self.assertIn("Remote API Active", openvla_ready["badge"])
+
+        pi0_ready = check_model_readiness("pi0", api_url="http://localhost:8000/act")
+        self.assertTrue(pi0_ready["ready"])
+
+    def test_get_all_models_status(self):
+        """
+        Verifies that get_all_models_status returns list with 6 models and valid fields.
+        """
+        status_list = get_all_models_status(api_url="")
+        self.assertEqual(len(status_list), 6)
+        ids = [m["id"] for m in status_list]
+        self.assertIn("smolvla", ids)
+        self.assertIn("gemini_vla", ids)
+        self.assertIn("octo", ids)
+        self.assertIn("rt1", ids)
+        self.assertIn("openvla", ids)
+        self.assertIn("pi0", ids)
+
+        # Check required fields
+        for item in status_list:
+            self.assertIn("id", item)
+            self.assertIn("name", item)
+            self.assertIn("full_name", item)
+            self.assertIn("ready", item)
+            self.assertIn("badge", item)
+            self.assertIn("description", item)
+            self.assertIn("requires_api", item)
 
 
 if __name__ == "__main__":

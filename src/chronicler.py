@@ -205,31 +205,57 @@ class Chronicler:
             action_state = f"VLM Analysis: {vlm_description}"
         else:
             # Fast Temporal State Machine
-            if dist is not None:
-                # MuJoCo metric units (< 0.04m) vs 2D pixel units (< 20px)
-                is_near = (dist < 0.04) if dist < 1.0 else (dist < 20.0)
-                is_descended = (dist < 0.015) if dist < 1.0 else (dist < 10.0)
-                
-                # Check if gripper holds object (for rigid objects, width is ~0.4-0.6)
-                if (gripper_width < 0.65 and is_near) or self.current_phase == "LIFTING":
-                    if self.grasped_step is None:
-                        self.grasped_step = self.step_count
-                    action_state = "GRASP_LOCKED: Object secured in fingers, executing lift"
-                    self.current_phase = "LIFTING"
-                elif is_descended:
-                    action_state = "ALIGNMENT_REACHED: Ready to grasp target object"
-                    self.current_phase = "GRASPING"
-                elif is_near:
-                    action_state = "TARGET_PROXIMITY: Descending end-effector onto target"
-                    self.current_phase = "DESCENDING"
-                elif is_occluded:
-                    action_state = "OCCLUSION_RECOVERY: Executing blind visual servoing trajectory"
-                    self.current_phase = "OCCLUDED_APPROACH"
+            is_pnp = any(k in human_command.lower() for k in ["put", "place", "basket", "vào giỏ", "bỏ vào", "đặt vào"])
+            dist_basket = None
+            if gripper_pos is not None:
+                basket_xy = np.array([0.38, -0.15], dtype=np.float32)
+                g_xy = np.array(gripper_pos[:2], dtype=np.float32)
+                dist_basket = float(np.linalg.norm(g_xy - basket_xy))
+
+            is_near = (dist < 0.04) if (dist is not None and dist < 1.0) else (dist is not None and dist < 20.0)
+            is_descended = (dist < 0.015) if (dist is not None and dist < 1.0) else (dist is not None and dist < 10.0)
+
+            if self.current_phase in ["COMPLETED", "RETRACTING"] or (self.current_phase == "RELEASING" and gripper_width > 0.55) or (self.grasped_step is not None and (self.step_count - self.grasped_step > 18) and gripper_width > 0.6):
+                if gripper_pos is not None and np.linalg.norm(np.array(gripper_pos[:2]) - np.array([0.45, 0.0])) < 0.04:
+                    action_state = "COMPLETED: Object safely deposited, arm at home rest position"
+                    self.current_phase = "COMPLETED"
                 else:
-                    action_state = "APPROACHING: Navigating towards object coordinates"
-                    self.current_phase = "APPROACHING"
+                    action_state = "RETRACTING: Returning arm & open gripper to home position"
+                    self.current_phase = "RETRACTING"
+            elif is_pnp and (self.current_phase in ["TRANSPORTING", "PLACING", "RELEASING"] or (self.current_phase == "LIFTING" and self.grasped_step is not None and self.step_count - self.grasped_step > 6)):
+                if dist_basket is not None and dist_basket < 0.08:
+                    if gripper_width > 0.50:
+                        action_state = "RELEASING: Releasing object safely into basket"
+                        self.current_phase = "RELEASING"
+                    else:
+                        action_state = "PLACING: Lowering object into basket receptacle"
+                        self.current_phase = "PLACING"
+                else:
+                    action_state = "TRANSPORTING: Carrying grasped object towards basket"
+                    self.current_phase = "TRANSPORTING"
+            elif (not is_pnp) and self.current_phase == "LIFTING" and self.grasped_step is not None and (self.step_count - self.grasped_step > 14):
+                if gripper_width > 0.50:
+                    action_state = "RELEASING: Releasing object safely onto table"
+                    self.current_phase = "RELEASING"
+                else:
+                    action_state = "RETURNING: Lowering object safely back to table"
+                    self.current_phase = "RETURNING"
+            elif (gripper_width < 0.65 and is_near) or self.current_phase == "LIFTING":
+                if self.grasped_step is None:
+                    self.grasped_step = self.step_count
+                action_state = "GRASP_LOCKED: Object secured in fingers, executing lift"
+                self.current_phase = "LIFTING"
+            elif is_descended:
+                action_state = "ALIGNMENT_REACHED: Ready to grasp target object"
+                self.current_phase = "GRASPING"
+            elif is_near:
+                action_state = "TARGET_PROXIMITY: Descending end-effector onto target"
+                self.current_phase = "DESCENDING"
+            elif is_occluded:
+                action_state = "OCCLUSION_RECOVERY: Executing blind visual servoing trajectory"
+                self.current_phase = "OCCLUDED_APPROACH"
             else:
-                action_state = "APPROACHING: Navigating towards target"
+                action_state = "APPROACHING: Navigating towards object coordinates"
                 self.current_phase = "APPROACHING"
 
         # 6. Update Temporal History Queue

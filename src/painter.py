@@ -13,15 +13,17 @@ class Painter:
         self.visible_color = visible_color   # Green (BGR: 0, 255, 0)
         self.occluded_color = occluded_color # Red (BGR: 0, 0, 255)
 
-    def draw_overlay(self, image, points, occluded_flags, prompt_text=""):
+    def draw_overlay(self, image, points, occluded_flags, prompt_text="", show_hud=False):
         """
-        Draws green/red tracking points onto the RGB image and renders HUD overlay.
+        Draws green/red tracking points onto the RGB image and optionally renders HUD overlay.
         
         Args:
             image: numpy array (H, W, 3) - RGB or BGR image
             points: list of [x, y] coordinates
             occluded_flags: list of booleans indicating if each point is occluded
             prompt_text: string - The dynamic state prompt from the Chronicler
+            show_hud: bool - Whether to paint the HUD banner directly onto the image.
+                             Default is False to prevent obscuring the camera view.
             
         Returns:
             painted_image: painted BGR image
@@ -41,42 +43,19 @@ class Painter:
                 # Outer border for visual contrast
                 cv2.circle(painted_image, center, 6, (0, 0, 0), 1)
 
-        # 2. Draw HUD multi-modal prompt overlay
-        if prompt_text:
-            parts = prompt_text.split(" | ")
-            y_offset = 25
-            
-            # Semi-transparent HUD background banner
-            hud_height = min(120, len(parts) * 24 + 15)
+        # 2. Draw HUD multi-modal prompt overlay ONLY if explicitly requested
+        if show_hud and prompt_text:
             h, w = painted_image.shape[:2]
-            hud_bg = painted_image[5:5+hud_height, 10:w-10]
+            hud_bg = painted_image[0:22, 0:w]
             if hud_bg.shape[0] > 0 and hud_bg.shape[1] > 0:
                 dark_box = np.zeros_like(hud_bg)
-                cv2.rectangle(dark_box, (0, 0), (dark_box.shape[1], dark_box.shape[0]), (20, 20, 20), -1)
-                painted_image[5:5+hud_height, 10:w-10] = cv2.addWeighted(hud_bg, 0.35, dark_box, 0.65, 0)
-                cv2.rectangle(painted_image, (10, 5), (w - 10, 5 + hud_height), (80, 80, 80), 1)
-
-            for part in parts:
-                # Text color based on section type
-                text_color = (255, 255, 255)
-                if part.startswith("[Task]"):
-                    text_color = (0, 220, 255) # Yellowish
-                elif part.startswith("[Status]"):
-                    text_color = (100, 255, 100) # Light Green
-                elif part.startswith("[Memory]"):
-                    text_color = (220, 180, 255) # Light Violet
-
-                # Drop shadow
-                cv2.putText(
-                    painted_image, part, (18, y_offset + 1), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.42, (0, 0, 0), 2, cv2.LINE_AA
-                )
-                # Main text
-                cv2.putText(
-                    painted_image, part, (18, y_offset), 
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.42, text_color, 1, cv2.LINE_AA
-                )
-                y_offset += 22
+                painted_image[0:22, 0:w] = cv2.addWeighted(hud_bg, 0.35, dark_box, 0.65, 0)
+            
+            first_part = prompt_text.split(" | ")[0]
+            cv2.putText(
+                painted_image, first_part, (8, 15), 
+                cv2.FONT_HERSHEY_SIMPLEX, 0.38, (0, 255, 255), 1, cv2.LINE_AA
+            )
                 
         return painted_image
 
